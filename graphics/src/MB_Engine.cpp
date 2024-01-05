@@ -72,6 +72,7 @@ void MB_Engine::cleanup() {
     }
 
     vkDeviceWaitIdle(mb_device->get_device());
+    _main_deletion_queue.flush(mb_device->get_device());
     delete mb_cmd;
     delete mb_swapchain;
     delete mb_device;

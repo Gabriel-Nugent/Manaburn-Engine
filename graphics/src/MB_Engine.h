@@ -68,32 +68,6 @@ const std::vector<const char*> instance_extensions = {
 namespace GRAPHICS
 {
 
-/**
- * @brief queue for holding memory objects that need to 
- *        be released when they are no longer needed
- */
-struct DeletionQueue {
-  std::vector<VkImage> image_queue;
-  std::vector<VkBuffer> buffer_queue;
-
-  void add_image(VkImage image) {
-    image_queue.push_back(image);
-  }
-
-  void add_buffer(VkBuffer buffer) {
-    buffer_queue.push_back(buffer);
-  }
-
-  void flush_queue(VkDevice _device) {
-    for (VkImage image : image_queue) {
-      vkDestroyImage(_device, image, nullptr);
-    }
-    for (VkBuffer buffer : buffer_queue) {
-      vkDestroyBuffer(_device, buffer, nullptr);
-    }
-  }
-};
-
 class MB_Engine
 {
 public:
@@ -117,6 +91,7 @@ private:
   VkInstance _instance;
   VkSurfaceKHR _surface;
   VkDevice _device;
+  DeletionQueue _main_deletion_queue;
 
   // Wrapper handles
   MB_Device* mb_device;

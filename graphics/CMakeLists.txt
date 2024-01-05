@@ -57,6 +57,7 @@ endif()
 
 file(GLOB_RECURSE CPP_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HPP_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp*)
+file(GLOB_RECURSE EXTERNALS ${CMAKE_CURRENT_SOURCE_DIR}/external_src/*)
 
 if (${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
   set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin/glslangValidator.exe")
@@ -80,7 +81,7 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
 
-add_library(graphics ${CPP_FILES} ${HPP_FILES})
+add_library(graphics ${CPP_FILES} ${HPP_FILES} ${EXTERNALS})
 
 set(Vulkan_INCLUDE_DIRS "C:/VulkanSDK/1.2.198.1/Include")
 

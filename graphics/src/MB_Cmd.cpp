@@ -16,6 +16,8 @@ MB_Cmd::~MB_Cmd() {
     vkDestroyFence(_device, _frames[i]._render_fence, nullptr);
     vkDestroySemaphore(_device, _frames[i]._render_semaphore, nullptr);
     vkDestroySemaphore(_device, _frames[i]._swapchain_semaphore, nullptr);
+
+    _frames[i]._deletion_queue.flush(_device);
   }
 }
 
@@ -54,6 +56,7 @@ void MB_Cmd::init_commands() {
 
 void MB_Cmd::wait_for_render() {
   vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, 100000000);
+  get_current_frame()._deletion_queue.flush(_device);
   vkResetFences(_device, 1, &get_current_frame()._render_fence);
 }
 

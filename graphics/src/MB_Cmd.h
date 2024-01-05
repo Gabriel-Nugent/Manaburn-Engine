@@ -18,11 +18,38 @@ const VkSubmitInfo2* pSubmits, VkFence fence) {
 namespace GRAPHICS
 {
 
+/**
+ * @brief queue for holding memory objects that need to 
+ *        be released when they are no longer needed
+ */
+struct DeletionQueue {
+  std::vector<VkImage> image_queue;
+  std::vector<VkBuffer> buffer_queue;
+
+  void add_image(VkImage image) {
+    image_queue.push_back(image);
+  }
+
+  void add_buffer(VkBuffer buffer) {
+    buffer_queue.push_back(buffer);
+  }
+
+  void flush(VkDevice _device) {
+    for (VkImage image : image_queue) {
+      vkDestroyImage(_device, image, nullptr);
+    }
+    for (VkBuffer buffer : buffer_queue) {
+      vkDestroyBuffer(_device, buffer, nullptr);
+    }
+  }
+};
+
 struct Frame_Data {
   VkCommandPool _command_pool;
   VkCommandBuffer _main_command_buffer;
   VkSemaphore _swapchain_semaphore, _render_semaphore;
   VkFence _render_fence;
+  DeletionQueue _deletion_queue;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
