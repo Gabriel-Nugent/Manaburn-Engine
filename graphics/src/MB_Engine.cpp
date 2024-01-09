@@ -1,5 +1,9 @@
 #include "MB_Engine.h"
 
+#define VMA_IMPLEMENTATION
+#include "../external_src/vk_mem_alloc.h"
+
+
 namespace GRAPHICS
 {
   
@@ -70,9 +74,13 @@ void MB_Engine::cleanup() {
     if (ENABLE_VALIDATION_LAYERS) {
       DestroyDebugUtilsMessengerEXT(_instance, debug_messenger, nullptr);
     }
-
+    
     vkDeviceWaitIdle(mb_device->get_device());
-    _main_deletion_queue.flush(mb_device->get_device());
+    _main_deletion_queue.flush();
+    
+    delete mb_image;
+    vmaDestroyAllocator(_allocator);
+
     delete mb_cmd;
     delete mb_swapchain;
     delete mb_device;
@@ -99,6 +107,7 @@ void MB_Engine::init_vulkan() {
 
   create_surface();
   init_device();
+  init_memory_allocator();
   create_swapchain();
   init_commands();
   init_pipelines();
@@ -213,6 +222,19 @@ void MB_Engine::init_device() {
 }
 
 /**
+ * @brief Initializes AMD's Vulkan Memory Allocator
+ */
+void MB_Engine::init_memory_allocator() {
+  VmaAllocatorCreateInfo allocator_info{};
+
+  allocator_info.physicalDevice = mb_device->get_gpu();
+  allocator_info.device = mb_device->get_device();
+  allocator_info.instance = _instance;
+  allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  vmaCreateAllocator(&allocator_info, &_allocator);
+}
+
+/**
  * @brief Initializes the swaphchain and its resources:
  *          Images, Image Views, Renderpass, Framebuffers
  */
@@ -221,6 +243,8 @@ void MB_Engine::create_swapchain() {
   mb_swapchain->create_default();
   mb_swapchain->init_default_renderpass();
   mb_swapchain->init_framebuffers();
+
+  mb_image = new MB_Image(_allocator, mb_device->get_device(), _window_extent);
 }
 
 /**

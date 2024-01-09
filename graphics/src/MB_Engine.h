@@ -12,8 +12,10 @@
 #include <iostream>
 #include <string>
 
+#include "vk_types.h"
 #include "MB_Device.h"
 #include "MB_Swapchain.h"
+#include "MB_Image.h"
 #include "MB_Pipeline.h"
 #include "MB_Cmd.h"
 
@@ -92,10 +94,12 @@ private:
   VkSurfaceKHR _surface;
   VkDevice _device;
   DeletionQueue _main_deletion_queue;
+  VmaAllocator _allocator;
 
   // Wrapper handles
   MB_Device* mb_device;
   MB_Swapchain* mb_swapchain;
+  MB_Image* mb_image;
   MB_Cmd* mb_cmd;
   MB_Pipeline* mb_pipeline;
 
@@ -105,10 +109,12 @@ private:
   void setup_debug_messenger();
   void create_surface();
   void init_device();
+  void init_memory_allocator();
   void create_swapchain();
   void init_commands();
   void init_pipelines();
   void init_triangle_pipeline();
+
   void draw();
 
   // debug callback function

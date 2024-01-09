@@ -23,23 +23,15 @@ namespace GRAPHICS
  *        be released when they are no longer needed
  */
 struct DeletionQueue {
-  std::vector<VkImage> image_queue;
-  std::vector<VkBuffer> buffer_queue;
+  std::vector<void*> queue;
 
-  void add_image(VkImage image) {
-    image_queue.push_back(image);
+  void add_pointer(void* ptr) {
+    queue.push_back(ptr);
   }
 
-  void add_buffer(VkBuffer buffer) {
-    buffer_queue.push_back(buffer);
-  }
-
-  void flush(VkDevice _device) {
-    for (VkImage image : image_queue) {
-      vkDestroyImage(_device, image, nullptr);
-    }
-    for (VkBuffer buffer : buffer_queue) {
-      vkDestroyBuffer(_device, buffer, nullptr);
+  void flush() {
+    for (auto ptr : queue) {
+      delete ptr;
     }
   }
 };

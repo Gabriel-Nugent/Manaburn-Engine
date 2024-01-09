@@ -105,21 +105,30 @@ void MB_Device::create_logical_device() {
     queue_create_infos.push_back(queue_info);
   }
 
-  VkPhysicalDeviceFeatures device_features{};
+  // enable required device features
+  VkPhysicalDeviceFeatures2 device_features2{};
+  device_features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+
+  // enable buffer device address feature
+  VkPhysicalDeviceBufferDeviceAddressFeatures buffer_features{};
+  buffer_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+  buffer_features.pNext = nullptr;
+  buffer_features.bufferDeviceAddress = VK_TRUE;
 
   // enable synchronization 2 features for the device
   VkPhysicalDeviceSynchronization2FeaturesKHR sync_features{};
   sync_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
-  sync_features.pNext = nullptr;
+  sync_features.pNext = &buffer_features;
   sync_features.synchronization2 = VK_TRUE;
+  device_features2.pNext = &sync_features;
 
   VkDeviceCreateInfo device_info{};
   device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  device_info.pNext = &sync_features;
+  device_info.pNext = &device_features2;
   device_info.pQueueCreateInfos = queue_create_infos.data();
   device_info.queueCreateInfoCount = 
     static_cast<uint32_t>(queue_create_infos.size());
-  device_info.pEnabledFeatures = &device_features;
+  device_info.pEnabledFeatures = nullptr;
   device_info.enabledExtensionCount 
     = static_cast<uint32_t>(device_extensions.size());
   device_info.ppEnabledExtensionNames = device_extensions.data();
