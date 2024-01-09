@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MB_Swapchain.h"
+#include "Swapchain.h"
 
 #include <vulkan/vulkan.h>
 #include "../external_src/vk_mem_alloc.h"
@@ -8,11 +8,11 @@
 namespace GRAPHICS
 {
 
-class MB_Image
+class Image
 {
 public:
-  MB_Image(VmaAllocator _allocator, VkDevice _device, VkExtent2D _window_extent);
-  ~MB_Image();
+  Image(VmaAllocator _allocator, VkDevice _device, VkExtent2D _window_extent);
+  ~Image();
 
   VkImage image;
   VkImageView image_view;

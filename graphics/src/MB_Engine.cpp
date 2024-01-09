@@ -21,7 +21,7 @@ void MB_Engine::init() {
 }
 
 /**
- * @brief main rendering loop for the engine, runs until
+ * @brief main rendering loop for the MB_Engine, runs until
  *        window is closed for an error is encountered.
  */
 void MB_Engine::run() {
@@ -64,7 +64,7 @@ while (!should_quit) {
 }
 
 /**
- * @brief Frees all allocated memory for the engine
+ * @brief Frees all allocated memory for the MB_Engine
  *        and destroys all vulkan handles
  */
 void MB_Engine::cleanup() {
@@ -75,15 +75,15 @@ void MB_Engine::cleanup() {
       DestroyDebugUtilsMessengerEXT(_instance, debug_messenger, nullptr);
     }
     
-    vkDeviceWaitIdle(mb_device->get_device());
+    vkDeviceWaitIdle(device->get_device());
     _main_deletion_queue.flush();
 
-    delete mb_image;
+    delete image;
     vmaDestroyAllocator(_allocator);
 
-    delete mb_cmd;
-    delete mb_swapchain;
-    delete mb_device;
+    delete cmd;
+    delete swapchain;
+    delete device;
 
     SDL_DestroyWindow(_window);
     vkDestroySurfaceKHR(_instance, _surface, nullptr);
@@ -94,7 +94,7 @@ void MB_Engine::cleanup() {
 }
 
 /**
- * @brief Initializes all of the engine members needed
+ * @brief Initializes all of the MB_Engine members needed
  *        to render to the window
  */
 void MB_Engine::init_vulkan() {
@@ -123,7 +123,7 @@ void MB_Engine::create_window() {
   SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
 
   _window = SDL_CreateWindow(
-    "Manaburn Engine",
+    "Manaburn MB_Engine",
     SDL_WINDOWPOS_UNDEFINED,
     SDL_WINDOWPOS_UNDEFINED,
     _window_extent.width,
@@ -216,9 +216,9 @@ void MB_Engine::create_surface() {
  * @brief Initializes the physical device, logical device, and submission queues
  */
 void MB_Engine::init_device() {
-  mb_device = new MB_Device(_instance, _surface);
-  mb_device->init();
-  _device = mb_device->get_device();
+  device = new Device(_instance, _surface);
+  device->init();
+  _device = device->get_device();
 }
 
 /**
@@ -227,8 +227,8 @@ void MB_Engine::init_device() {
 void MB_Engine::init_memory_allocator() {
   VmaAllocatorCreateInfo allocator_info{};
 
-  allocator_info.physicalDevice = mb_device->get_gpu();
-  allocator_info.device = mb_device->get_device();
+  allocator_info.physicalDevice = device->get_gpu();
+  allocator_info.device = device->get_device();
   allocator_info.instance = _instance;
   allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   vmaCreateAllocator(&allocator_info, &_allocator);
@@ -239,12 +239,12 @@ void MB_Engine::init_memory_allocator() {
  *          Images, Image Views, Renderpass, Framebuffers
  */
 void MB_Engine::create_swapchain() {
-  mb_swapchain = new MB_Swapchain(_instance, mb_device, _surface, _window);
-  mb_swapchain->create_default();
-  mb_swapchain->init_default_renderpass();
-  mb_swapchain->init_framebuffers();
+  swapchain = new Swapchain(_instance, device, _surface, _window);
+  swapchain->create_default();
+  swapchain->init_default_renderpass();
+  swapchain->init_framebuffers();
 
-  mb_image = new MB_Image(_allocator, mb_device->get_device(), _window_extent);
+  image = new Image(_allocator, device->get_device(), _window_extent);
 }
 
 /**
@@ -252,8 +252,8 @@ void MB_Engine::create_swapchain() {
  * 
  */
 void MB_Engine::init_commands() {
-  mb_cmd = new MB_Cmd(mb_device);
-  mb_cmd->init_commands();
+  cmd = new Cmd(device);
+  cmd->init_commands();
 }
 
 void MB_Engine::init_pipelines() {
@@ -261,7 +261,7 @@ void MB_Engine::init_pipelines() {
 }
 
 void MB_Engine::init_triangle_pipeline() {
-  MB_Pipeline pipeline(mb_device->get_device());
+  Pipeline pipeline(device->get_device());
 }
 
 /**
@@ -270,33 +270,33 @@ void MB_Engine::init_triangle_pipeline() {
  */
 void MB_Engine::draw() {
   // wait for the previous frame to finish rendering
-  mb_cmd->wait_for_render();
+  cmd->wait_for_render();
 
   // grab the next image from the swaphchain
   uint32_t swapchain_image_index;
   vkAcquireNextImageKHR(
     _device, 
-    mb_swapchain->get_swapchain(),
+    swapchain->get_swapchain(),
     1000000000,
-    mb_cmd->get_current_frame()._swapchain_semaphore,
+    cmd->get_current_frame()._swapchain_semaphore,
     nullptr, 
     &swapchain_image_index
   );
   
-  mb_cmd->begin_recording(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  cmd->begin_recording(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  mb_cmd->draw_background(mb_swapchain, _window_extent, swapchain_image_index);
+  cmd->draw_background(swapchain, _window_extent, swapchain_image_index);
 
-  mb_cmd->end_recording();
+  cmd->end_recording();
 
   // submit the image to the graphics queue
-  mb_cmd->submit_graphics(
+  cmd->submit_graphics(
     VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
     VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT
   );
 
   // present the graphics image to the window
-  mb_cmd->present_graphics(mb_swapchain->get_swapchain(), &swapchain_image_index);
+  cmd->present_graphics(swapchain->get_swapchain(), &swapchain_image_index);
   _frame_number++;
 
 }

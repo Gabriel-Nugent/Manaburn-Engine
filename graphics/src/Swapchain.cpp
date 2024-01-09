@@ -1,32 +1,32 @@
-#include "MB_Swapchain.h"
+#include "Swapchain.h"
 
 namespace GRAPHICS
 {
 
-MB_Swapchain::MB_Swapchain(
+Swapchain::Swapchain(
   VkInstance instance, 
-  MB_Device* device, 
+  Device* device, 
   VkSurfaceKHR surface,
   SDL_Window* window)
-: _instance(instance), mb_device(device), _surface(surface), _window(window) {
-  _gpu = mb_device->get_gpu();
+: _instance(instance), device(device), _surface(surface), _window(window) {
+  _gpu = device->get_gpu();
 }
 
-MB_Swapchain::~MB_Swapchain() {
-  vkDestroyRenderPass(mb_device->get_device(), _renderpass, nullptr);
+Swapchain::~Swapchain() {
+  vkDestroyRenderPass(device->get_device(), _renderpass, nullptr);
 
   for (auto framebuffer : _framebuffers) {
-    vkDestroyFramebuffer(mb_device->get_device(), framebuffer, nullptr);
+    vkDestroyFramebuffer(device->get_device(), framebuffer, nullptr);
   }
 
   for (auto image_view : swapchain_image_views) {
-    vkDestroyImageView(mb_device->get_device(), image_view, nullptr);
+    vkDestroyImageView(device->get_device(), image_view, nullptr);
   }
 
-  vkDestroySwapchainKHR(mb_device->get_device(), _swapchain, nullptr);
+  vkDestroySwapchainKHR(device->get_device(), _swapchain, nullptr);
 }
 
-void MB_Swapchain::create_default() {
+void Swapchain::create_default() {
   query_swapchain_details();
 
   VkSurfaceFormatKHR format = choose_surface_format();
@@ -55,11 +55,11 @@ void MB_Swapchain::create_default() {
   swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
   uint32_t queue_family_indices[] = {
-    mb_device->get_graphics_index(),
-    mb_device->get_present_index()
+    device->get_graphics_index(),
+    device->get_present_index()
   };
 
-  if (mb_device->get_graphics_index() != mb_device->get_present_index()) {
+  if (device->get_graphics_index() != device->get_present_index()) {
     swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     swapchain_info.queueFamilyIndexCount = 2;
     swapchain_info.pQueueFamilyIndices = queue_family_indices;
@@ -77,7 +77,7 @@ void MB_Swapchain::create_default() {
   swapchain_info.oldSwapchain = VK_NULL_HANDLE;
 
   if (vkCreateSwapchainKHR(
-    mb_device->get_device(), 
+    device->get_device(), 
     &swapchain_info, 
     nullptr, 
     &_swapchain
@@ -86,22 +86,22 @@ void MB_Swapchain::create_default() {
   }
 
   // retrieve swapchain images
-  vkGetSwapchainImagesKHR(mb_device->get_device(), _swapchain, &image_count, nullptr);
+  vkGetSwapchainImagesKHR(device->get_device(), _swapchain, &image_count, nullptr);
   swapchain_images.resize(image_count);
-  vkGetSwapchainImagesKHR(mb_device->get_device(), _swapchain, &image_count, swapchain_images.data());
+  vkGetSwapchainImagesKHR(device->get_device(), _swapchain, &image_count, swapchain_images.data());
 
   create_image_views();
 }
 
-void MB_Swapchain::create() {
+void Swapchain::create() {
 
 }
 
-void MB_Swapchain::recreate() {
+void Swapchain::recreate() {
 
 }
 
-void MB_Swapchain::init_default_renderpass() {
+void Swapchain::init_default_renderpass() {
   VkAttachmentDescription color_attachment = {};
 	//the attachment will have the format needed by the swapchain
 	color_attachment.format = swapchain_image_format;
@@ -138,12 +138,12 @@ void MB_Swapchain::init_default_renderpass() {
 	render_pass_info.subpassCount = 1;
 	render_pass_info.pSubpasses = &subpass;
 
-	if (vkCreateRenderPass(mb_device->get_device(), &render_pass_info, nullptr, &_renderpass) != VK_SUCCESS) {
+	if (vkCreateRenderPass(device->get_device(), &render_pass_info, nullptr, &_renderpass) != VK_SUCCESS) {
     throw std::runtime_error("failed to create renderpass!");
   }
 }
 
-void MB_Swapchain::init_framebuffers() {
+void Swapchain::init_framebuffers() {
   //create the framebuffers for the swapchain images. This will connect the render-pass to the images for rendering
 	VkFramebufferCreateInfo fb_info = {};
 	fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -163,13 +163,13 @@ void MB_Swapchain::init_framebuffers() {
 	for (uint32_t i = 0; i < swapchain_imagecount; i++) {
 
 		fb_info.pAttachments = &swapchain_image_views[i];
-		if (vkCreateFramebuffer(mb_device->get_device(), &fb_info, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
+		if (vkCreateFramebuffer(device->get_device(), &fb_info, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create framebuffer");
     }
 	}
 }
 
-void MB_Swapchain::query_swapchain_details() {
+void Swapchain::query_swapchain_details() {
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_gpu, _surface, &details.capabilities);
 
   uint32_t format_count;
@@ -198,7 +198,7 @@ void MB_Swapchain::query_swapchain_details() {
 }
 
 
-VkSurfaceFormatKHR MB_Swapchain::choose_surface_format() {
+VkSurfaceFormatKHR Swapchain::choose_surface_format() {
   for (const auto& available_format : details.formats) {
     if (available_format.format == VK_FORMAT_B8G8R8A8_SRGB && 
     available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -209,7 +209,7 @@ VkSurfaceFormatKHR MB_Swapchain::choose_surface_format() {
   return details.formats[0];
 }
 
-VkPresentModeKHR MB_Swapchain::choose_present_mode() {
+VkPresentModeKHR Swapchain::choose_present_mode() {
   for (const auto& present_mode : details.present_modes) {
     if (present_mode == VK_PRESENT_MODE_FIFO_KHR) {
       return present_mode;
@@ -219,7 +219,7 @@ VkPresentModeKHR MB_Swapchain::choose_present_mode() {
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D MB_Swapchain::choose_extent() {
+VkExtent2D Swapchain::choose_extent() {
   if (details.capabilities.currentExtent.width != 
   std::numeric_limits<uint32_t>::max()) {
     return details.capabilities.currentExtent;
@@ -250,7 +250,7 @@ VkExtent2D MB_Swapchain::choose_extent() {
 }
 
 
-void MB_Swapchain::create_image_views() {
+void Swapchain::create_image_views() {
   swapchain_image_views.resize(swapchain_images.size());
 
   for (size_t i = 0; i < swapchain_images.size(); i++) {
@@ -269,7 +269,7 @@ void MB_Swapchain::create_image_views() {
     image_info.subresourceRange.baseArrayLayer = 0;
     image_info.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(mb_device->get_device(), &image_info, nullptr, &swapchain_image_views[i]) != VK_SUCCESS) {
+    if (vkCreateImageView(device->get_device(), &image_info, nullptr, &swapchain_image_views[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create image views!");
     }
   }

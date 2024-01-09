@@ -1,9 +1,9 @@
-#include "MB_GUI.h"
+#include "GUI.h"
 
 namespace GRAPHICS
 {
 
-void MB_GUI::init() {
+void GUI::init() {
   // create command pool
   VkCommandPoolCreateInfo pool_info{};
   pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -30,7 +30,7 @@ void MB_GUI::init() {
 }
 
 
-void MB_GUI::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) {
+void GUI::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) {
   vkResetFences(_device, 1, &_fence);
   vkResetCommandBuffer(_command_buffer, 0);
 
@@ -47,7 +47,7 @@ void MB_GUI::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& functio
   function(cmd);
 
   vkEndCommandBuffer(cmd);
-  
+
 }
 
 

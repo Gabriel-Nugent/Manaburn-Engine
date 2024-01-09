@@ -9,7 +9,7 @@
 #include <limits>
 #include <algorithm>
 
-#include "MB_Device.h"
+#include "Device.h"
 
 namespace GRAPHICS
 {
@@ -20,15 +20,15 @@ struct Swapchain_details {
   std::vector<VkPresentModeKHR> present_modes;
 };
 
-class MB_Swapchain {
+class Swapchain {
 public:
-  MB_Swapchain(
+  Swapchain(
     VkInstance instance, 
-    MB_Device* device,
+    Device* device,
     VkSurfaceKHR surface,
     SDL_Window* window
   );
-  ~MB_Swapchain();
+  ~Swapchain();
 
   VkSwapchainKHR get_swapchain(){return _swapchain;}
   VkFormat get_format(){return swapchain_image_format;}
@@ -50,7 +50,7 @@ private:
   SDL_Window* _window;
   VkSwapchainKHR _swapchain;
 
-  MB_Device* mb_device;
+  Device* device;
   Swapchain_details details;
   VkSwapchainCreateInfoKHR old_create_info{};
   VkFormat swapchain_image_format;

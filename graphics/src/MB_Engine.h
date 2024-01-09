@@ -13,11 +13,11 @@
 #include <string>
 
 #include "vk_types.h"
-#include "MB_Device.h"
-#include "MB_Swapchain.h"
-#include "MB_Image.h"
-#include "MB_Pipeline.h"
-#include "MB_Cmd.h"
+#include "Device.h"
+#include "Swapchain.h"
+#include "Image.h"
+#include "Pipeline.h"
+#include "Cmd.h"
 
 //--- LOAD IN VULKAN EXTENSION FUNCTIONS ---//
 
@@ -81,13 +81,13 @@ public:
   void cleanup();
 
 private:
-  // Engine states and callbacks
+  // MB_Engine states and callbacks
   VkDebugUtilsMessengerEXT debug_messenger;
   bool _initialized { false };
   int _frame_number {0} ;
   bool stop_rendering { false };
 
-  // Engine handles
+  // MB_Engine handles
   SDL_Window* _window;
   VkExtent2D _window_extent{ 1200 , 600 };
   VkInstance _instance;
@@ -97,11 +97,11 @@ private:
   VmaAllocator _allocator;
 
   // Wrapper handles
-  MB_Device* mb_device;
-  MB_Swapchain* mb_swapchain;
-  MB_Image* mb_image;
-  MB_Cmd* mb_cmd;
-  MB_Pipeline* mb_pipeline;
+  Device* device;
+  Swapchain* swapchain;
+  Image* image;
+  Cmd* cmd;
+  Pipeline* pipeline;
 
   void init_vulkan();
   void create_window();

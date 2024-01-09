@@ -16,11 +16,11 @@ const std::vector<const char*> device_extensions = {
 namespace GRAPHICS
 {
 
-class MB_Device
+class Device
 {
 public:
-  MB_Device(VkInstance instance, VkSurfaceKHR surface);
-  ~MB_Device();
+  Device(VkInstance instance, VkSurfaceKHR surface);
+  ~Device();
 
   VkPhysicalDevice get_gpu(){return _chosen_GPU;}
   VkDevice get_device(){return _device;}

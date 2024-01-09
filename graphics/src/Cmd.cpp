@@ -1,15 +1,15 @@
-#include "MB_Cmd.h"
+#include "Cmd.h"
 
 namespace GRAPHICS
 {
 
-MB_Cmd::MB_Cmd(MB_Device* device) {
+Cmd::Cmd(Device* device) {
   _device = device->get_device();
   _graphics_queue = device->get_graphics_queue();
   _graphics_queue_family = device->get_graphics_index();
 }
 
-MB_Cmd::~MB_Cmd() {
+Cmd::~Cmd() {
   for (int i = 0; i < FRAME_OVERLAP; i++) {
     vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);
 
@@ -21,7 +21,7 @@ MB_Cmd::~MB_Cmd() {
   }
 }
 
-void MB_Cmd::init_commands() {
+void Cmd::init_commands() {
   VkCommandPoolCreateInfo command_pool_info{};
   command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_info.pNext = nullptr;
@@ -54,13 +54,13 @@ void MB_Cmd::init_commands() {
   init_sync_structures();
 }
 
-void MB_Cmd::wait_for_render() {
+void Cmd::wait_for_render() {
   vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, 100000000);
   get_current_frame()._deletion_queue.flush();
   vkResetFences(_device, 1, &get_current_frame()._render_fence);
 }
 
-void MB_Cmd::begin_recording(VkCommandBufferUsageFlags flags) {
+void Cmd::begin_recording(VkCommandBufferUsageFlags flags) {
   current_cmd = get_current_frame()._main_command_buffer;
   vkResetCommandBuffer(current_cmd, 0);
 
@@ -74,19 +74,19 @@ void MB_Cmd::begin_recording(VkCommandBufferUsageFlags flags) {
 }
 
 
-void MB_Cmd::begin_renderpass(const VkRenderPassBeginInfo* render_info, VkSubpassContents contents) {
+void Cmd::begin_renderpass(const VkRenderPassBeginInfo* render_info, VkSubpassContents contents) {
   vkCmdBeginRenderPass(current_cmd, render_info, contents);
 }
 
-void MB_Cmd::end_recording() {
+void Cmd::end_recording() {
   vkEndCommandBuffer(current_cmd);
 }
 
-void MB_Cmd::end_renderpass() {
+void Cmd::end_renderpass() {
   vkCmdEndRenderPass(current_cmd);
 }
 
-void MB_Cmd::submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFlags2 signal_mask) {
+void Cmd::submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFlags2 signal_mask) {
   VkSemaphoreSubmitInfo wait_info{};
 	wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
 	wait_info.pNext = nullptr;
@@ -122,7 +122,7 @@ void MB_Cmd::submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFla
   queue_submit(_device, _graphics_queue, 1, &submit_info, get_current_frame()._render_fence);
 }
 
-void MB_Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_image_index) {
+void Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_image_index) {
   VkPresentInfoKHR present_info{};
   present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	present_info.pNext = nullptr;
@@ -141,7 +141,7 @@ void MB_Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_ima
   _frame_number++;
 }
 
-void MB_Cmd::copy_image_to_image(VkImage src, VkImage destination, VkExtent2D src_size, VkExtent2D dst_size) {
+void Cmd::copy_image_to_image(VkImage src, VkImage destination, VkExtent2D src_size, VkExtent2D dst_size) {
   VkImageBlit blit_region{};
   
   blit_region.srcOffsets[1].x = src_size.width;
@@ -174,7 +174,7 @@ void MB_Cmd::copy_image_to_image(VkImage src, VkImage destination, VkExtent2D sr
   );
 }
 
-void MB_Cmd::draw_background(MB_Swapchain* mb_swapchain, VkExtent2D _window_extent, uint32_t image_index) {
+void Cmd::draw_background(Swapchain* swapchain, VkExtent2D _window_extent, uint32_t image_index) {
   VkClearValue clear_value;
   float flash = static_cast<float>(abs(sin(_frame_number / 120.f)));
   clear_value.color = { { 0.0f, 0.0f, flash, 1.0f } };
@@ -183,11 +183,11 @@ void MB_Cmd::draw_background(MB_Swapchain* mb_swapchain, VkExtent2D _window_exte
   renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderpass_info.pNext = nullptr;
 
-  renderpass_info.renderPass = mb_swapchain->get_renderpass();
+  renderpass_info.renderPass = swapchain->get_renderpass();
 	renderpass_info.renderArea.offset.x = 0;
 	renderpass_info.renderArea.offset.y = 0;
 	renderpass_info.renderArea.extent = _window_extent;
-	renderpass_info.framebuffer = mb_swapchain->get_framebuffers()[image_index];
+	renderpass_info.framebuffer = swapchain->get_framebuffers()[image_index];
 
   renderpass_info.clearValueCount = 1;
   renderpass_info.pClearValues = &clear_value;
@@ -196,7 +196,7 @@ void MB_Cmd::draw_background(MB_Swapchain* mb_swapchain, VkExtent2D _window_exte
   end_renderpass();
 }
 
-void MB_Cmd::init_sync_structures() {
+void Cmd::init_sync_structures() {
   VkFenceCreateInfo fence_info{};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fence_info.pNext = nullptr;

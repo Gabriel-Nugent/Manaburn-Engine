@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "MB_Device.h"
-#include "MB_Swapchain.h"
+#include "Device.h"
+#include "Swapchain.h"
 
 static VkResult queue_submit(VkDevice _device, VkQueue queue, uint32_t submitCount, 
 const VkSubmitInfo2* pSubmits, VkFence fence) {
@@ -47,11 +47,11 @@ struct Frame_Data {
 
 constexpr unsigned int FRAME_OVERLAP = 2;
 
-class MB_Cmd
+class Cmd
 {
 public:
-  MB_Cmd(MB_Device* device);
-  ~MB_Cmd();
+  Cmd(Device* device);
+  ~Cmd();
 
   Frame_Data& get_current_frame() { 
     return _frames[_frame_number % FRAME_OVERLAP];
@@ -69,7 +69,7 @@ public:
 
   void transition_image(VkImage image, VkImageLayout current_layout, VkImageLayout new_layout);
   void copy_image_to_image(VkImage src, VkImage destination, VkExtent2D src_size, VkExtent2D dst_size);
-  void draw_background(MB_Swapchain* mb_swapchain, VkExtent2D _window_extent, uint32_t image_index);
+  void draw_background(Swapchain* swapchain, VkExtent2D _window_extent, uint32_t image_index);
 private:
   VkDevice _device;
   VkQueue _graphics_queue;

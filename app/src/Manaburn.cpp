@@ -4,13 +4,13 @@
 
 //main entry point
 int main(int argc, char* argv[]){
-    GRAPHICS::MB_Engine engine;
+    GRAPHICS::MB_Engine MB_Engine;
 
-    engine.init();
+    MB_Engine.init();
 
-    engine.run();
+    MB_Engine.run();
 
-    engine.cleanup();
+    MB_Engine.cleanup();
 
     return 0;
 }

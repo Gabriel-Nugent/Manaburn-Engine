@@ -1,10 +1,10 @@
-#include "MB_Image.h"
+#include "Image.h"
 
 namespace GRAPHICS
 {
 
 
-MB_Image::MB_Image(VmaAllocator allocator, VkDevice device, VkExtent2D _window_extent) {
+Image::Image(VmaAllocator allocator, VkDevice device, VkExtent2D _window_extent) {
   _device = device;
   _allocator = allocator;
   
@@ -40,12 +40,12 @@ MB_Image::MB_Image(VmaAllocator allocator, VkDevice device, VkExtent2D _window_e
   }
 }
 
-MB_Image::~MB_Image() {
+Image::~Image() {
   vkDestroyImageView(_device, image_view, nullptr);
   vmaDestroyImage(_allocator, image, allocation);
 }
 
-VkImageCreateInfo MB_Image::image_create_info(VkFormat format, 
+VkImageCreateInfo Image::image_create_info(VkFormat format, 
   VkImageUsageFlags usage_flags, 
   VkExtent3D extent) {
   
@@ -71,7 +71,7 @@ VkImageCreateInfo MB_Image::image_create_info(VkFormat format,
   return info;
 }
 
-VkImageViewCreateInfo MB_Image::imageview_create_info(VkFormat format, 
+VkImageViewCreateInfo Image::imageview_create_info(VkFormat format, 
   VkImage image, 
   VkImageAspectFlags aspect_flags) {
   

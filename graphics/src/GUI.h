@@ -7,11 +7,11 @@
 namespace GRAPHICS
 {
 
-class MB_GUI
+class GUI
 {
 public:
-  MB_GUI(VkDevice device);
-  ~MB_GUI(){};
+  GUI(VkDevice device);
+  ~GUI(){};
 
   void init();
   void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);

@@ -1,21 +1,21 @@
-#include "MB_Device.h"
+#include "Device.h"
 
 namespace GRAPHICS {
 
-MB_Device::MB_Device(VkInstance instance, VkSurfaceKHR surface)
+Device::Device(VkInstance instance, VkSurfaceKHR surface)
 : _instance(instance), _surface(surface) {}
 
-MB_Device::~MB_Device() {
+Device::~Device() {
   vkDestroyDevice(_device, nullptr);
 }
 
-void MB_Device::init() {
+void Device::init() {
   pick_physical_device();
   find_queue_indices();
   create_logical_device();
 }
 
-void MB_Device::pick_physical_device() {
+void Device::pick_physical_device() {
   // query for physical devices
   uint32_t physical_device_count = 0;
   vkEnumeratePhysicalDevices(_instance, &physical_device_count, nullptr);
@@ -35,7 +35,7 @@ void MB_Device::pick_physical_device() {
   }
 }
 
-bool MB_Device::is_device_suitable(VkPhysicalDevice gpu) {
+bool Device::is_device_suitable(VkPhysicalDevice gpu) {
   // check for the extensions available on the device
   uint32_t extension_count = 0;
   vkEnumerateDeviceExtensionProperties(gpu, nullptr, &extension_count, nullptr);
@@ -59,7 +59,7 @@ bool MB_Device::is_device_suitable(VkPhysicalDevice gpu) {
   return false;
 }
 
-void MB_Device::find_queue_indices() {
+void Device::find_queue_indices() {
   // query for physical device properties
   uint32_t property_count = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(_chosen_GPU, &property_count, nullptr);
@@ -86,7 +86,7 @@ void MB_Device::find_queue_indices() {
 }
 
 
-void MB_Device::create_logical_device() {
+void Device::create_logical_device() {
   // queue create infos
 
   std::vector<VkDeviceQueueCreateInfo> queue_create_infos;

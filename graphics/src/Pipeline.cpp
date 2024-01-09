@@ -1,16 +1,16 @@
-#include "MB_Pipeline.h"
+#include "Pipeline.h"
 
 namespace GRAPHICS
 {
 
-MB_Pipeline::~MB_Pipeline() {
+Pipeline::~Pipeline() {
   if (vert_shader != VK_NULL_HANDLE) {
     vkDestroyShaderModule(_device, frag_shader, nullptr);
     vkDestroyShaderModule(_device, vert_shader, nullptr);
   }
 }
 
-void MB_Pipeline::clear() {
+void Pipeline::clear() {
   // zero out all structs
   _input_assembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
   _vertex_input_info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -28,7 +28,7 @@ void MB_Pipeline::clear() {
   }
 }
 
-VkPipeline MB_Pipeline::build_pipeline(VkRenderPass pass) {
+VkPipeline Pipeline::build_pipeline(VkRenderPass pass) {
   // viewport state will be created from the stored viewport and scissor
   VkPipelineViewportStateCreateInfo viewport_state{};
   viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -99,7 +99,7 @@ VkPipeline MB_Pipeline::build_pipeline(VkRenderPass pass) {
   return VK_NULL_HANDLE;
 }
 
-void MB_Pipeline::set_shaders(std::string vert_filepath, std::string frag_filepath) {
+void Pipeline::set_shaders(std::string vert_filepath, std::string frag_filepath) {
   _shader_stages.clear();
   
   // load in shader stage code
@@ -123,27 +123,27 @@ void MB_Pipeline::set_shaders(std::string vert_filepath, std::string frag_filepa
   _shader_stages.push_back(frag_shader_info);
 }
 
-void MB_Pipeline::set_vertex_input_info() {
+void Pipeline::set_vertex_input_info() {
   _vertex_input_info.vertexAttributeDescriptionCount = 0;
   _vertex_input_info.vertexBindingDescriptionCount = 0;
 }
 
-void MB_Pipeline::set_input_topology(VkPrimitiveTopology topology) {
+void Pipeline::set_input_topology(VkPrimitiveTopology topology) {
   _input_assembly.topology = topology;
   _input_assembly.primitiveRestartEnable = VK_FALSE;
 }
 
-void MB_Pipeline::set_polygon_mode(VkPolygonMode mode) {
+void Pipeline::set_polygon_mode(VkPolygonMode mode) {
   _rasterizer.polygonMode = mode;
   _rasterizer.lineWidth = 1.f;
 }
 
-void MB_Pipeline::set_cull_mode(VkCullModeFlags cull_mode, VkFrontFace front_face) {
+void Pipeline::set_cull_mode(VkCullModeFlags cull_mode, VkFrontFace front_face) {
   _rasterizer.cullMode = cull_mode;
   _rasterizer.frontFace = front_face;
 }
 
-void MB_Pipeline::set_multisampling_none() {
+void Pipeline::set_multisampling_none() {
   _multisampling.sampleShadingEnable = VK_FALSE;
   _multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
   _multisampling.minSampleShading = 1.0f;
@@ -152,11 +152,11 @@ void MB_Pipeline::set_multisampling_none() {
   _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-void MB_Pipeline::set_pipeline_layout(VkPipelineLayout layout) {
+void Pipeline::set_pipeline_layout(VkPipelineLayout layout) {
   _pipeline_layout = layout;
 }
 
-void MB_Pipeline::disable_blending() {
+void Pipeline::disable_blending() {
   _color_blend_attachment.colorWriteMask = 
     VK_COLOR_COMPONENT_R_BIT |
     VK_COLOR_COMPONENT_G_BIT |
@@ -165,17 +165,17 @@ void MB_Pipeline::disable_blending() {
   _color_blend_attachment.blendEnable = VK_FALSE;
 }
 
-void MB_Pipeline::set_color_attachment_format(VkFormat format) {
+void Pipeline::set_color_attachment_format(VkFormat format) {
   _color_attachmentformat = format;
   _render_info.colorAttachmentCount = 1;
   _render_info.pColorAttachmentFormats = &_color_attachmentformat;
 }
 
-void MB_Pipeline::set_depth_format(VkFormat format) {
+void Pipeline::set_depth_format(VkFormat format) {
   _render_info.depthAttachmentFormat = format;
 }
 
-void MB_Pipeline::disable_depthtest() {
+void Pipeline::disable_depthtest() {
   _depth_stencil.depthTestEnable = VK_FALSE;
 	_depth_stencil.depthWriteEnable = VK_FALSE;
 	_depth_stencil.depthCompareOp = VK_COMPARE_OP_NEVER;
@@ -187,7 +187,7 @@ void MB_Pipeline::disable_depthtest() {
 	_depth_stencil.maxDepthBounds= 1.f;
 }
 
-std::vector<char> MB_Pipeline::read_file(const std::string& filepath) {
+std::vector<char> Pipeline::read_file(const std::string& filepath) {
   // read the file starting at the end in binary mode
   std::ifstream file(filepath, std::ios::ate | std::ios::binary);
 
@@ -207,7 +207,7 @@ std::vector<char> MB_Pipeline::read_file(const std::string& filepath) {
   return buffer;
 }
 
-VkShaderModule MB_Pipeline::create_shader_module(const std::vector<char>& code) {
+VkShaderModule Pipeline::create_shader_module(const std::vector<char>& code) {
   VkShaderModuleCreateInfo shader_module_info{};
   shader_module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   shader_module_info.codeSize = code.size();

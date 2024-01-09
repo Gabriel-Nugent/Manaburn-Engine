@@ -7,12 +7,12 @@
 #include <vulkan/vulkan.h>
 #include <fmt/core.h>
 
-#include "MB_Device.h"
+#include "Device.h"
 
 namespace GRAPHICS
 {
 
-class MB_Pipeline
+class Pipeline
 {
 public:
   std::vector<VkPipelineShaderStageCreateInfo> _shader_stages;
@@ -26,12 +26,12 @@ public:
   VkPipelineRenderingCreateInfo _render_info;
   VkFormat _color_attachmentformat;
 
-  MB_Pipeline(VkDevice device){ 
+  Pipeline(VkDevice device){ 
     clear();
     _device = device;
   }
 
-  ~MB_Pipeline();
+  ~Pipeline();
 
   void clear();
 
