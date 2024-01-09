@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "MB_Device.h"
+#include "MB_Swapchain.h"
 
 static VkResult queue_submit(VkDevice _device, VkQueue queue, uint32_t submitCount, 
 const VkSubmitInfo2* pSubmits, VkFence fence) {
@@ -65,6 +66,10 @@ public:
 
   void submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFlags2 signal_mask);
   void present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_image_index);
+
+  void transition_image(VkImage image, VkImageLayout current_layout, VkImageLayout new_layout);
+  void copy_image_to_image(VkImage src, VkImage destination, VkExtent2D src_size, VkExtent2D dst_size);
+  void draw_background(MB_Swapchain* mb_swapchain, VkExtent2D _window_extent, uint32_t image_index);
 private:
   VkDevice _device;
   VkQueue _graphics_queue;

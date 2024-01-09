@@ -64,6 +64,7 @@ endif()
 file(GLOB_RECURSE GLSL_SOURCE_FILES
     "../graphics/shaders/*.frag"
     "../graphics/shaders/*.vert"
+    "../graphics/shaders/*.comp"
     )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})

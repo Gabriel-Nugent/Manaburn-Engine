@@ -13,6 +13,7 @@ MB_Pipeline::~MB_Pipeline() {
 void MB_Pipeline::clear() {
   // zero out all structs
   _input_assembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+  _vertex_input_info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
 	_rasterizer = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 	_color_blend_attachment = {};
 	_multisampling = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
@@ -27,7 +28,7 @@ void MB_Pipeline::clear() {
   }
 }
 
-VkPipeline MB_Pipeline::build_pipeline() {
+VkPipeline MB_Pipeline::build_pipeline(VkRenderPass pass) {
   // viewport state will be created from the stored viewport and scissor
   VkPipelineViewportStateCreateInfo viewport_state{};
   viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -46,10 +47,6 @@ VkPipeline MB_Pipeline::build_pipeline() {
   color_blending.attachmentCount = 1;
   color_blending.pAttachments = &_color_blend_attachment;
 
-  VkPipelineVertexInputStateCreateInfo _vertex_input_info = { 
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO 
-  };
-
   // build pipeline with pre built info structs
   VkGraphicsPipelineCreateInfo pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
@@ -67,6 +64,9 @@ VkPipeline MB_Pipeline::build_pipeline() {
   pipeline_info.pColorBlendState = &color_blending;
   pipeline_info.pDepthStencilState = &_depth_stencil;
   pipeline_info.layout = _pipeline_layout;
+  pipeline_info.renderPass = pass;
+  pipeline_info.subpass = 0;
+  pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
 
   // setup our dynamic states
   VkDynamicState state[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
@@ -123,6 +123,10 @@ void MB_Pipeline::set_shaders(std::string vert_filepath, std::string frag_filepa
   _shader_stages.push_back(frag_shader_info);
 }
 
+void MB_Pipeline::set_vertex_input_info() {
+  _vertex_input_info.vertexAttributeDescriptionCount = 0;
+  _vertex_input_info.vertexBindingDescriptionCount = 0;
+}
 
 void MB_Pipeline::set_input_topology(VkPrimitiveTopology topology) {
   _input_assembly.topology = topology;
@@ -146,6 +150,10 @@ void MB_Pipeline::set_multisampling_none() {
   _multisampling.pSampleMask = nullptr;
   _multisampling.alphaToCoverageEnable = VK_FALSE;
   _multisampling.alphaToOneEnable = VK_FALSE;
+}
+
+void MB_Pipeline::set_pipeline_layout(VkPipelineLayout layout) {
+  _pipeline_layout = layout;
 }
 
 void MB_Pipeline::disable_blending() {

@@ -77,7 +77,7 @@ void MB_Engine::cleanup() {
     
     vkDeviceWaitIdle(mb_device->get_device());
     _main_deletion_queue.flush();
-    
+
     delete mb_image;
     vmaDestroyAllocator(_allocator);
 
@@ -285,25 +285,8 @@ void MB_Engine::draw() {
   
   mb_cmd->begin_recording(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  VkClearValue clear_value;
-  float flash = abs(sin(_frame_number / 120.f));
-  clear_value.color = { { 0.0f, 0.0f, flash, 1.0f } };
+  mb_cmd->draw_background(mb_swapchain, _window_extent, swapchain_image_index);
 
-  VkRenderPassBeginInfo renderpass_info{};
-  renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderpass_info.pNext = nullptr;
-
-  renderpass_info.renderPass = mb_swapchain->get_renderpass();
-	renderpass_info.renderArea.offset.x = 0;
-	renderpass_info.renderArea.offset.y = 0;
-	renderpass_info.renderArea.extent = _window_extent;
-	renderpass_info.framebuffer = mb_swapchain->get_framebuffers()[swapchain_image_index];
-
-  renderpass_info.clearValueCount = 1;
-  renderpass_info.pClearValues = &clear_value;
-
-  mb_cmd->begin_renderpass(&renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
-  mb_cmd->end_renderpass();
   mb_cmd->end_recording();
 
   // submit the image to the graphics queue

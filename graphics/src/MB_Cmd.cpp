@@ -141,6 +141,60 @@ void MB_Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_ima
   _frame_number++;
 }
 
+void MB_Cmd::copy_image_to_image(VkImage src, VkImage destination, VkExtent2D src_size, VkExtent2D dst_size) {
+  VkImageBlit blit_region{};
+  
+  blit_region.srcOffsets[1].x = src_size.width;
+  blit_region.srcOffsets[1].x = src_size.height;
+  blit_region.srcOffsets[1].z = 1;
+
+  blit_region.dstOffsets[1].x = dst_size.width;
+	blit_region.dstOffsets[1].y = dst_size.height;
+	blit_region.dstOffsets[1].z = 1;
+
+	blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blit_region.srcSubresource.baseArrayLayer = 0;
+	blit_region.srcSubresource.layerCount = 1;
+	blit_region.srcSubresource.mipLevel = 0;
+
+	blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blit_region.dstSubresource.baseArrayLayer = 0;
+	blit_region.dstSubresource.layerCount = 1;
+	blit_region.dstSubresource.mipLevel = 0;
+
+  vkCmdBlitImage(
+    current_cmd, 
+    src, 
+    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
+    destination, 
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+    1, 
+    &blit_region, 
+    VK_FILTER_LINEAR
+  );
+}
+
+void MB_Cmd::draw_background(MB_Swapchain* mb_swapchain, VkExtent2D _window_extent, uint32_t image_index) {
+  VkClearValue clear_value;
+  float flash = static_cast<float>(abs(sin(_frame_number / 120.f)));
+  clear_value.color = { { 0.0f, 0.0f, flash, 1.0f } };
+
+  VkRenderPassBeginInfo renderpass_info{};
+  renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderpass_info.pNext = nullptr;
+
+  renderpass_info.renderPass = mb_swapchain->get_renderpass();
+	renderpass_info.renderArea.offset.x = 0;
+	renderpass_info.renderArea.offset.y = 0;
+	renderpass_info.renderArea.extent = _window_extent;
+	renderpass_info.framebuffer = mb_swapchain->get_framebuffers()[image_index];
+
+  renderpass_info.clearValueCount = 1;
+  renderpass_info.pClearValues = &clear_value;
+
+  begin_renderpass(&renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+  end_renderpass();
+}
 
 void MB_Cmd::init_sync_structures() {
   VkFenceCreateInfo fence_info{};
@@ -160,6 +214,5 @@ void MB_Cmd::init_sync_structures() {
     vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._render_semaphore);
   }
 }
-
 
 } // namespace GRAPHICS

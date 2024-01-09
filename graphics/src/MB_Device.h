@@ -10,7 +10,7 @@
 
 const std::vector<const char*> device_extensions = {
   VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-  "VK_KHR_synchronization2"
+  "VK_KHR_synchronization2",
 };
 
 namespace GRAPHICS
