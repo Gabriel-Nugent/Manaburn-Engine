@@ -13,6 +13,7 @@
 #include <string>
 
 #include "vk_types.h"
+#include "vk_descriptors.h"
 #include "Device.h"
 #include "Swapchain.h"
 #include "Image.h"
@@ -73,7 +74,7 @@ namespace GRAPHICS
 class MB_Engine
 {
 public:
-  MB_Engine(){};
+  MB_Engine();
   ~MB_Engine();
 
   void init();
@@ -84,8 +85,10 @@ private:
   // MB_Engine states and callbacks
   VkDebugUtilsMessengerEXT debug_messenger;
   bool _initialized { false };
-  int _frame_number {0} ;
+  int _frame_number { 0 } ;
   bool stop_rendering { false };
+  bool resize_requested{ false };
+  int _selected_shader { 0 };
 
   // MB_Engine handles
   SDL_Window* _window;
@@ -95,6 +98,12 @@ private:
   VkDevice _device;
   DeletionQueue _main_deletion_queue;
   VmaAllocator _allocator;
+
+  // Graphics Pipelines handles
+  Pipeline_Queue pipeline_queue;
+  VkPipeline _triangle_pipeline;
+  VkPipelineLayout _triangle_layout;
+  VkPipeline _colored_pipeline;
 
   // Wrapper handles
   Device* device;
@@ -109,11 +118,15 @@ private:
   void setup_debug_messenger();
   void create_surface();
   void init_device();
+
   void init_memory_allocator();
+
   void create_swapchain();
   void init_commands();
+
   void init_pipelines();
   void init_triangle_pipeline();
+  void init_colored_pipeline();
 
   void draw();
 

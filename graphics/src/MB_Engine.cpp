@@ -6,7 +6,11 @@
 
 namespace GRAPHICS
 {
-  
+
+MB_Engine::MB_Engine() {
+
+}
+
 MB_Engine::~MB_Engine() {
   // cleanup has not been called manually and thus must be performed
   if (_initialized) {
@@ -51,7 +55,34 @@ while (!should_quit) {
           break;
       }
     }
+     else if (event.type == SDL_KEYDOWN) {
+      switch (event.key.keysym.sym) {
+        case SDLK_SPACE:
+          // move to next pipeline
+          _selected_shader += 1;
+          // loop over to first pipeline if last pipeline is reached
+          if(_selected_shader > pipeline_queue.pipelines.size() - 1) {
+            _selected_shader = 0;
+          }
+          break;
+
+        default:
+          break;
+      }
+    }
   }
+
+  // resize the swapchain to match the window
+  if (resize_requested) {
+    vkDeviceWaitIdle(_device);
+
+    int width, height;
+    SDL_GetWindowSize(_window, &width, &height);
+    _window_extent.width = width;
+    _window_extent.height = height;
+    swapchain->resize(_window_extent);
+  }
+
   // slow loop iteration to save resources  
   if (stop_rendering) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -75,12 +106,9 @@ void MB_Engine::cleanup() {
       DestroyDebugUtilsMessengerEXT(_instance, debug_messenger, nullptr);
     }
     
-    vkDeviceWaitIdle(device->get_device());
-    _main_deletion_queue.flush();
-
-    delete image;
+    vkDeviceWaitIdle(_device);
+    pipeline_queue.flush(_device);
     vmaDestroyAllocator(_allocator);
-
     delete cmd;
     delete swapchain;
     delete device;
@@ -120,7 +148,7 @@ void MB_Engine::create_window() {
   // we require a window from SDL
   SDL_Init(SDL_INIT_VIDEO);
 
-  SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
+  SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
   _window = SDL_CreateWindow(
     "Manaburn MB_Engine",
@@ -175,9 +203,7 @@ void MB_Engine::create_instance() {
     create_info.ppEnabledLayerNames = nullptr;
   }
 
-  if (vkCreateInstance(&create_info, nullptr, &_instance) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create instance!");
-  }
+  VK_CHECK(vkCreateInstance(&create_info, nullptr, &_instance));
 }
 
 /**
@@ -198,9 +224,7 @@ void MB_Engine::setup_debug_messenger() {
   debug_info.pfnUserCallback = debugCallback;
   debug_info.pUserData = nullptr; // Optional
 
-  if (CreateDebugUtilsMessengerEXT(_instance, &debug_info, nullptr, &debug_messenger) != VK_SUCCESS) {
-    throw std::runtime_error("failed to set up debug messenger!");
-  }
+  VK_CHECK(CreateDebugUtilsMessengerEXT(_instance, &debug_info, nullptr, &debug_messenger));
 }
 
 /**
@@ -231,7 +255,7 @@ void MB_Engine::init_memory_allocator() {
   allocator_info.device = device->get_device();
   allocator_info.instance = _instance;
   allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-  vmaCreateAllocator(&allocator_info, &_allocator);
+  VK_CHECK(vmaCreateAllocator(&allocator_info, &_allocator));
 }
 
 /**
@@ -243,8 +267,6 @@ void MB_Engine::create_swapchain() {
   swapchain->create_default();
   swapchain->init_default_renderpass();
   swapchain->init_framebuffers();
-
-  image = new Image(_allocator, device->get_device(), _window_extent);
 }
 
 /**
@@ -258,10 +280,39 @@ void MB_Engine::init_commands() {
 
 void MB_Engine::init_pipelines() {
   init_triangle_pipeline();
+  init_colored_pipeline();
 }
 
 void MB_Engine::init_triangle_pipeline() {
-  Pipeline pipeline(device->get_device());
+  vklayout::Layout::triangle_layout(_device, &_triangle_layout);
+  Pipeline pipeline_builder(device->get_device());
+  pipeline_builder.set_shaders("shaders/triangle.vert.spv", "shaders/triangle.frag.spv");
+  pipeline_builder.set_vertex_input_info();
+  pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipeline_builder.set_multisampling_none();
+  pipeline_builder.set_pipeline_layout(_triangle_layout);
+  pipeline_builder.disable_blending();
+  _triangle_pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
+
+  pipeline_queue.pipeline_layouts.push_back(_triangle_layout);
+  pipeline_queue.pipelines.push_back(_triangle_pipeline);
+}
+
+void MB_Engine::init_colored_pipeline() {
+  Pipeline pipeline_builder(device->get_device());
+  pipeline_builder.set_shaders("shaders/colored_triangle.vert.spv", "shaders/colored_triangle.frag.spv");
+  pipeline_builder.set_vertex_input_info();
+  pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipeline_builder.set_multisampling_none();
+  pipeline_builder.set_pipeline_layout(_triangle_layout);
+  pipeline_builder.disable_blending();
+  _colored_pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
+
+  pipeline_queue.pipelines.push_back(_colored_pipeline);
 }
 
 /**
@@ -274,7 +325,7 @@ void MB_Engine::draw() {
 
   // grab the next image from the swaphchain
   uint32_t swapchain_image_index;
-  vkAcquireNextImageKHR(
+  VkResult swapchain_status = vkAcquireNextImageKHR(
     _device, 
     swapchain->get_swapchain(),
     1000000000,
@@ -282,11 +333,40 @@ void MB_Engine::draw() {
     nullptr, 
     &swapchain_image_index
   );
+  if (swapchain_status = VK_ERROR_OUT_OF_DATE_KHR) {
+    resize_requested = true;
+    return;
+  }
   
   cmd->begin_recording(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  //cmd->draw_background(swapchain, _window_extent, swapchain_image_index);
 
-  cmd->draw_background(swapchain, _window_extent, swapchain_image_index);
+  VkClearValue clear_value;
+  float flash = static_cast<float>(abs(sin(_frame_number / 120.f)));
+  clear_value.color = { { 0.0f, 0.0f, flash, 1.0f } };
 
+  VkRenderPassBeginInfo renderpass_info{};
+  renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderpass_info.pNext = nullptr;
+
+  renderpass_info.renderPass = swapchain->get_renderpass();
+	renderpass_info.renderArea.offset.x = 0;
+	renderpass_info.renderArea.offset.y = 0;
+	renderpass_info.renderArea.extent = _window_extent;
+	renderpass_info.framebuffer = swapchain->get_framebuffers()[swapchain_image_index];
+
+  renderpass_info.clearValueCount = 1;
+  renderpass_info.pClearValues = &clear_value;
+
+  cmd->begin_renderpass(&renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+  //--- RENDERING COMMANDS ---//
+
+  cmd->bind_pipeline(pipeline_queue.pipelines[_selected_shader], VK_PIPELINE_BIND_POINT_GRAPHICS);
+  cmd->set_window(_window_extent);
+  cmd->draw_geometry(3, 1, 0, 0);
+ 
+  cmd->end_renderpass();
   cmd->end_recording();
 
   // submit the image to the graphics queue

@@ -3,21 +3,14 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+#include "vk_types.h"
+
 namespace vklayout
 {
 
-void init_triangle_layout(VkDevice _device, VkPipelineLayout* layout) {
-  VkPipelineLayoutCreateInfo info{};
-  info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  info.pNext = nullptr;
-  // empty defaults
-  info.flags = 0;
-  info.setLayoutCount = 0;
-	info.pSetLayouts = nullptr;
-	info.pushConstantRangeCount = 0;
-	info.pPushConstantRanges = nullptr;
-
-  vkCreatePipelineLayout(_device, &info, nullptr, layout);
-}
+class Layout {
+public:
+  static void triangle_layout(VkDevice _device, VkPipelineLayout* layout);
+};
 
 } // namespace vklayout

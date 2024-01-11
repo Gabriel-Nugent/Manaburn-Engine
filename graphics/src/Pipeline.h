@@ -12,6 +12,20 @@
 namespace GRAPHICS
 {
 
+struct Pipeline_Queue {
+  std::vector<VkPipeline> pipelines;
+  std::vector<VkPipelineLayout> pipeline_layouts;
+
+  void flush(VkDevice _device) {
+    for (VkPipeline pipeline : pipelines) {
+      vkDestroyPipeline(_device, pipeline, nullptr);
+    }
+    for (VkPipelineLayout layout : pipeline_layouts) {
+      vkDestroyPipelineLayout(_device, layout, nullptr);
+    }
+  }
+};
+
 class Pipeline
 {
 public:
@@ -22,9 +36,6 @@ public:
   VkPipelineColorBlendAttachmentState _color_blend_attachment;
   VkPipelineMultisampleStateCreateInfo _multisampling;
   VkPipelineLayout _pipeline_layout;
-  VkPipelineDepthStencilStateCreateInfo _depth_stencil;
-  VkPipelineRenderingCreateInfo _render_info;
-  VkFormat _color_attachmentformat;
 
   Pipeline(VkDevice device){ 
     clear();
@@ -45,9 +56,6 @@ public:
   void set_multisampling_none();
   void set_pipeline_layout(VkPipelineLayout layout);
   void disable_blending();
-  void set_color_attachment_format(VkFormat format);
-  void set_depth_format(VkFormat format);
-  void disable_depthtest();
 
 private:
   VkDevice _device;

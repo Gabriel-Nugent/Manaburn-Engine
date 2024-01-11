@@ -38,7 +38,7 @@ public:
 
   void create_default();
   void create();
-  void recreate();
+  void resize(VkExtent2D _window_extent);
 
   void init_default_renderpass();
   void init_framebuffers();
@@ -49,6 +49,7 @@ private:
   VkSurfaceKHR _surface;
   SDL_Window* _window;
   VkSwapchainKHR _swapchain;
+  VkSwapchainKHR _old_swapchain = VK_NULL_HANDLE;
 
   Device* device;
   Swapchain_details details;

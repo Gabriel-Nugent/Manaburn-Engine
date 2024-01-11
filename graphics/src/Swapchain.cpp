@@ -97,8 +97,42 @@ void Swapchain::create() {
 
 }
 
-void Swapchain::recreate() {
+void Swapchain::resize(VkExtent2D _window_extent) {
+  if (_old_swapchain != VK_NULL_HANDLE) {
+    vkDestroySwapchainKHR(device->get_device(), _old_swapchain, nullptr);
+  }
 
+  _old_swapchain = _swapchain;
+  old_create_info.imageExtent = _window_extent;
+  old_create_info.oldSwapchain = _old_swapchain;
+  if (vkCreateSwapchainKHR(
+    device->get_device(), 
+    &old_create_info, 
+    nullptr, 
+    &_swapchain
+  ) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create swap chain!");
+  }
+
+  swapchain_extent = _window_extent;
+  uint32_t image_count = details.capabilities.minImageCount + 1;
+
+  // retrieve swapchain images
+  vkGetSwapchainImagesKHR(device->get_device(), _swapchain, &image_count, nullptr);
+  swapchain_images.resize(image_count);
+  vkGetSwapchainImagesKHR(device->get_device(), _swapchain, &image_count, swapchain_images.data());
+
+  for (auto image_view : swapchain_image_views) {
+    vkDestroyImageView(device->get_device(), image_view, nullptr);
+  }
+
+  create_image_views();
+
+  for (auto framebuffer : _framebuffers) {
+    vkDestroyFramebuffer(device->get_device(), framebuffer, nullptr);
+  }
+
+  init_framebuffers();
 }
 
 void Swapchain::init_default_renderpass() {

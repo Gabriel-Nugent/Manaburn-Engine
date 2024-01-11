@@ -29,15 +29,13 @@ void Cmd::init_commands() {
 	command_pool_info.queueFamilyIndex = _graphics_queue_family;
 
   for (int i = 0; i < FRAME_OVERLAP; i++) {
-    if (vkCreateCommandPool(
+    VK_CHECK(vkCreateCommandPool(
       _device, 
       &command_pool_info, 
       nullptr,
       &_frames[i]._command_pool
-    ) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create command pool!");
-    }
-
+    ));
+  
     VkCommandBufferAllocateInfo cmd_alloc_info{};
     cmd_alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmd_alloc_info.pNext = nullptr;
@@ -45,24 +43,21 @@ void Cmd::init_commands() {
     cmd_alloc_info.commandBufferCount = 1;
     cmd_alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-    if (vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_frames[i]._main_command_buffer) != VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate buffer!");
-    }
-
+    VK_CHECK(vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_frames[i]._main_command_buffer));
   }
 
   init_sync_structures();
 }
 
 void Cmd::wait_for_render() {
-  vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, 100000000);
+  VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, 100000000));
   get_current_frame()._deletion_queue.flush();
-  vkResetFences(_device, 1, &get_current_frame()._render_fence);
+  VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._render_fence));
 }
 
 void Cmd::begin_recording(VkCommandBufferUsageFlags flags) {
   current_cmd = get_current_frame()._main_command_buffer;
-  vkResetCommandBuffer(current_cmd, 0);
+  VK_CHECK(vkResetCommandBuffer(current_cmd, 0));
 
   VkCommandBufferBeginInfo cmd_info{};
   cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -70,16 +65,42 @@ void Cmd::begin_recording(VkCommandBufferUsageFlags flags) {
   cmd_info.pInheritanceInfo = nullptr;
   cmd_info.flags = flags;
 
-  vkBeginCommandBuffer(current_cmd, &cmd_info);
+  VK_CHECK(vkBeginCommandBuffer(current_cmd, &cmd_info));
 }
 
 
-void Cmd::begin_renderpass(const VkRenderPassBeginInfo* render_info, VkSubpassContents contents) {
-  vkCmdBeginRenderPass(current_cmd, render_info, contents);
+void Cmd::begin_renderpass(VkRenderPassBeginInfo* begin_info, VkSubpassContents contents) {
+  vkCmdBeginRenderPass(current_cmd, begin_info, contents);
+}
+
+void Cmd::bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point) {
+  vkCmdBindPipeline(current_cmd, bind_point, pipeline);
+}
+
+void Cmd::set_window(const VkExtent2D _window_extent) {
+  // set viewport
+  VkViewport viewport;
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = (float)_window_extent.width;
+  viewport.height = (float)_window_extent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(current_cmd, 0, 1, &viewport);
+
+  // set scissor
+  VkRect2D scissor;
+  scissor.offset = { 0, 0 };
+  scissor.extent = _window_extent;
+  vkCmdSetScissor(current_cmd, 0, 1, &scissor);
+}
+
+void Cmd::draw_geometry(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) {
+  vkCmdDraw(current_cmd, vertex_count, instance_count, first_vertex, first_instance);
 }
 
 void Cmd::end_recording() {
-  vkEndCommandBuffer(current_cmd);
+  VK_CHECK(vkEndCommandBuffer(current_cmd));
 }
 
 void Cmd::end_renderpass() {
@@ -119,7 +140,7 @@ void Cmd::submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFlags2
   submit_info.commandBufferInfoCount = 1;
   submit_info.pCommandBufferInfos = &cmd_info;
 
-  queue_submit(_device, _graphics_queue, 1, &submit_info, get_current_frame()._render_fence);
+  VK_CHECK(queue_submit(_device, _graphics_queue, 1, &submit_info, get_current_frame()._render_fence));
 }
 
 void Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_image_index) {
@@ -134,9 +155,7 @@ void Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_image_
 
 	present_info.pImageIndices = swapchain_image_index;
 
-  if (vkQueuePresentKHR(_graphics_queue, &present_info) != VK_SUCCESS) {
-    throw std::runtime_error("failed to present image!");
-  }
+  VK_CHECK(vkQueuePresentKHR(_graphics_queue, &present_info));
 
   _frame_number++;
 }
@@ -191,9 +210,7 @@ void Cmd::draw_background(Swapchain* swapchain, VkExtent2D _window_extent, uint3
 
   renderpass_info.clearValueCount = 1;
   renderpass_info.pClearValues = &clear_value;
-
-  begin_renderpass(&renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
-  end_renderpass();
+  current_renderpass_info = renderpass_info;
 }
 
 void Cmd::init_sync_structures() {
@@ -208,10 +225,10 @@ void Cmd::init_sync_structures() {
   semaphore_info.flags = 0;
 
   for (int i = 0; i < FRAME_OVERLAP; i++) {
-    vkCreateFence(_device, &fence_info, nullptr, &_frames[i]._render_fence);
+    VK_CHECK(vkCreateFence(_device, &fence_info, nullptr, &_frames[i]._render_fence));
 
-    vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._swapchain_semaphore);
-    vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._render_semaphore);
+    VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._swapchain_semaphore));
+    VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._render_semaphore));
   }
 }
 

@@ -6,7 +6,6 @@ set(ENV{VULKAN_SDK} "c:/VulkanSDK/1.3.261.1")
 set(CMAKE_CXX_STANDARD 20)
 project(Manaburn VERSION 0.1.0 LANGUAGES C CXX)
 
-add_subdirectory(app)
 add_subdirectory(graphics)
-
+add_subdirectory(app)
 

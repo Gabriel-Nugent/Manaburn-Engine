@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "vk_types.h"
 #include "Device.h"
 #include "Swapchain.h"
 
@@ -60,7 +61,10 @@ public:
   void init_commands();
   void wait_for_render();
   void begin_recording(VkCommandBufferUsageFlags flags);
-  void begin_renderpass(const VkRenderPassBeginInfo* render_info, VkSubpassContents contents);
+  void begin_renderpass(VkRenderPassBeginInfo* begin_info, VkSubpassContents contents);
+  void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point);
+  void set_window(const VkExtent2D _window_extent);
+  void draw_geometry(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
   void end_recording();
   void end_renderpass();
 
@@ -79,6 +83,7 @@ private:
   Frame_Data _frames[FRAME_OVERLAP];
 
   VkRenderPass _renderpass;
+  VkRenderPassBeginInfo current_renderpass_info;
   std::vector<VkFramebuffer> _framebuffers;
 
   VkCommandBuffer current_cmd;
