@@ -1,41 +1,11 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
 
-namespace vkutil
-{
+struct vkutil {
 
-void vkutil::copy_image_to_image(VkCommandBuffer cmd, VkImage src, VkImage destination, VkExtent2D src_size, VkExtent2D dst_size) {
-  VkImageBlit blit_region{};
-  
-  blit_region.srcOffsets[1].x = src_size.width;
-  blit_region.srcOffsets[1].x = src_size.height;
-  blit_region.srcOffsets[1].z = 1;
+static glm::mat4 calc_render_matrix(const glm::vec3 camera_position,const int _frame_number);
 
-  blit_region.dstOffsets[1].x = dst_size.width;
-	blit_region.dstOffsets[1].y = dst_size.height;
-	blit_region.dstOffsets[1].z = 1;
-
-	blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blit_region.srcSubresource.baseArrayLayer = 0;
-	blit_region.srcSubresource.layerCount = 1;
-	blit_region.srcSubresource.mipLevel = 0;
-
-	blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blit_region.dstSubresource.baseArrayLayer = 0;
-	blit_region.dstSubresource.layerCount = 1;
-	blit_region.dstSubresource.mipLevel = 0;
-
-  vkCmdBlitImage(
-    cmd, 
-    src, 
-    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
-    destination, 
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-    1, 
-    &blit_region, 
-    VK_FILTER_LINEAR
-  );
-}
-
-} // namespace vkutil
+};

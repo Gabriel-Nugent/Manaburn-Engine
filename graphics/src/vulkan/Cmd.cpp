@@ -92,6 +92,10 @@ void Cmd::set_window(const VkExtent2D _window_extent) {
   vkCmdSetScissor(current_cmd, 0, 1, &scissor);
 }
 
+void Cmd::set_push_constants(VkPipelineLayout layout, VkShaderStageFlags flags, uint32_t offset, uint32_t size, const void* push_values) {
+  vkCmdPushConstants(current_cmd, layout, flags, offset, size, push_values);
+};
+
 void Cmd::draw_geometry(Mesh* mesh, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) {
   VkDeviceSize offset  = 0;
   vkCmdBindVertexBuffers(current_cmd, 0, 1, &mesh->_vertexBuffer._buffer, &offset);

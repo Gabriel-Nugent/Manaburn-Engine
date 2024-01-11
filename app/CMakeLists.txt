@@ -78,6 +78,19 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
 
+file(GLOB_RECURSE OBJ_FILES
+    "../graphics/meshes/*.obj"
+)
+
+foreach(OBJ ${OBJ_FILES})
+  get_filename_component(FILE_NAME ${OBJ} NAME)
+  set(OBJ_FILE "${PROJECT_BINARY_DIR}/meshes/${FILE_NAME}")
+  add_custom_command(
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/meshes/"
+    DEPENDS ${OBJ})
+  list(APPEND OBJ_MESHES ${OBJ_FILE})
+endforeach(OBJ)
+
 add_executable(app ${CPP_FILES})
 
 add_custom_target(
@@ -85,7 +98,12 @@ add_custom_target(
     DEPENDS ${SPIRV_BINARY_FILES}
     )
 
-add_dependencies(app Shaders)
+add_custom_target(
+    Meshes
+    DEPENDS ${OBJ_MESHES}
+    )
+
+add_dependencies(app Shaders Meshes)
 
 add_custom_command(TARGET app POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:app>/shaders/"

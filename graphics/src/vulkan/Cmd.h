@@ -61,6 +61,7 @@ public:
   void begin_renderpass(VkRenderPassBeginInfo* begin_info, VkSubpassContents contents);
   void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point);
   void set_window(const VkExtent2D _window_extent);
+  void set_push_constants(VkPipelineLayout layout, VkShaderStageFlags flags, uint32_t offset, uint32_t size, const void* push_values);
   void draw_geometry(Mesh* mesh, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
   void end_recording();
   void end_renderpass();

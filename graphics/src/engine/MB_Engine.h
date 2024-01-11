@@ -15,6 +15,7 @@
 #include <map>
 
 #include "../vulkan_util/vk_types.h"
+#include "../vulkan_util/vk_util.h"
 #include "../vulkan_util/vk_descriptors.h"
 #include "../vulkan/Device.h"
 #include "../vulkan/Swapchain.h"

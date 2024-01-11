@@ -23,6 +23,7 @@ MB_Engine::~MB_Engine() {
 void MB_Engine::init() {
   init_vulkan();
   load_meshes();
+  init_camera();
   _initialized = true;
 }
 
@@ -101,6 +102,7 @@ void MB_Engine::cleanup() {
     _main_deletion_queue.flush_meshes(_allocator);
     pipeline_queue.flush(_device);
     vmaDestroyAllocator(_allocator);
+    delete camera;
     delete cmd;
     delete swapchain;
     delete device;
@@ -431,6 +433,18 @@ void MB_Engine::draw() {
 
   cmd->bind_pipeline(pipeline_queue.pipelines["Mesh Pipeline"], VK_PIPELINE_BIND_POINT_GRAPHICS);
   cmd->set_window(_window_extent);
+
+  // set object render matrix
+  MeshPushConstants constants;
+  constants.render_matrix = vkutil::calc_render_matrix(camera->pos, _frame_number);
+  cmd->set_push_constants(
+    pipeline_queue.pipeline_layouts["Mesh Layout"], 
+    VK_SHADER_STAGE_VERTEX_BIT, 
+    0,
+    sizeof(MeshPushConstants),
+    &constants
+  );
+
   cmd->draw_geometry(&_triangle_mesh, 1, 0, 0);
  
   cmd->end_renderpass();
