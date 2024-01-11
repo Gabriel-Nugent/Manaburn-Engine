@@ -8,4 +8,3 @@ project(Manaburn VERSION 0.1.0 LANGUAGES C CXX)
 
 add_subdirectory(graphics)
 add_subdirectory(app)
-

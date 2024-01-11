@@ -16,8 +16,6 @@ Cmd::~Cmd() {
     vkDestroyFence(_device, _frames[i]._render_fence, nullptr);
     vkDestroySemaphore(_device, _frames[i]._render_semaphore, nullptr);
     vkDestroySemaphore(_device, _frames[i]._swapchain_semaphore, nullptr);
-
-    _frames[i]._deletion_queue.flush();
   }
 }
 
@@ -51,7 +49,6 @@ void Cmd::init_commands() {
 
 void Cmd::wait_for_render() {
   VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, 100000000));
-  get_current_frame()._deletion_queue.flush();
   VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._render_fence));
 }
 
@@ -95,8 +92,10 @@ void Cmd::set_window(const VkExtent2D _window_extent) {
   vkCmdSetScissor(current_cmd, 0, 1, &scissor);
 }
 
-void Cmd::draw_geometry(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) {
-  vkCmdDraw(current_cmd, vertex_count, instance_count, first_vertex, first_instance);
+void Cmd::draw_geometry(Mesh* mesh, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) {
+  VkDeviceSize offset  = 0;
+  vkCmdBindVertexBuffers(current_cmd, 0, 1, &mesh->_vertexBuffer._buffer, &offset);
+  vkCmdDraw(current_cmd, static_cast<uint32_t>(mesh->_vertices.size()), instance_count, first_vertex, first_instance);
 }
 
 void Cmd::end_recording() {

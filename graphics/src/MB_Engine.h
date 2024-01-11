@@ -11,6 +11,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <map>
 
 #include "vk_types.h"
 #include "vk_descriptors.h"
@@ -19,6 +20,7 @@
 #include "Image.h"
 #include "Pipeline.h"
 #include "Cmd.h"
+#include "Object.h"
 
 //--- LOAD IN VULKAN EXTENSION FUNCTIONS ---//
 
@@ -101,9 +103,9 @@ private:
 
   // Graphics Pipelines handles
   Pipeline_Queue pipeline_queue;
-  VkPipeline _triangle_pipeline;
-  VkPipelineLayout _triangle_layout;
-  VkPipeline _colored_pipeline;
+
+  // mesh handles
+  Mesh _triangle_mesh;
 
   // Wrapper handles
   Device* device;
@@ -127,6 +129,10 @@ private:
   void init_pipelines();
   void init_triangle_pipeline();
   void init_colored_pipeline();
+  void init_mesh_pipeline();
+
+  void load_meshes();
+  void upload_mesh(Mesh &mesh);
 
   void draw();
 

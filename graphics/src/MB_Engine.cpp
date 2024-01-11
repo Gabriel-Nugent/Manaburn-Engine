@@ -20,7 +20,7 @@ MB_Engine::~MB_Engine() {
   
 void MB_Engine::init() {
   init_vulkan();
-
+  load_meshes();
   _initialized = true;
 }
 
@@ -72,17 +72,6 @@ while (!should_quit) {
     }
   }
 
-  // resize the swapchain to match the window
-  if (resize_requested) {
-    vkDeviceWaitIdle(_device);
-
-    int width, height;
-    SDL_GetWindowSize(_window, &width, &height);
-    _window_extent.width = width;
-    _window_extent.height = height;
-    swapchain->resize(_window_extent);
-  }
-
   // slow loop iteration to save resources  
   if (stop_rendering) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -107,6 +96,7 @@ void MB_Engine::cleanup() {
     }
     
     vkDeviceWaitIdle(_device);
+    _main_deletion_queue.flush_meshes(_allocator);
     pipeline_queue.flush(_device);
     vmaDestroyAllocator(_allocator);
     delete cmd;
@@ -281,10 +271,12 @@ void MB_Engine::init_commands() {
 void MB_Engine::init_pipelines() {
   init_triangle_pipeline();
   init_colored_pipeline();
+  init_mesh_pipeline();
 }
 
 void MB_Engine::init_triangle_pipeline() {
-  vklayout::Layout::triangle_layout(_device, &_triangle_layout);
+  VkPipelineLayout layout;
+  vklayout::Layout::triangle_layout(_device, &layout);
   Pipeline pipeline_builder(device->get_device());
   pipeline_builder.set_shaders("shaders/triangle.vert.spv", "shaders/triangle.frag.spv");
   pipeline_builder.set_vertex_input_info();
@@ -292,12 +284,12 @@ void MB_Engine::init_triangle_pipeline() {
   pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipeline_builder.set_multisampling_none();
-  pipeline_builder.set_pipeline_layout(_triangle_layout);
+  pipeline_builder.set_pipeline_layout(layout);
   pipeline_builder.disable_blending();
-  _triangle_pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
+  VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
 
-  pipeline_queue.pipeline_layouts.push_back(_triangle_layout);
-  pipeline_queue.pipelines.push_back(_triangle_pipeline);
+  pipeline_queue.pipeline_layouts["Triangle Layout"] = layout;
+  pipeline_queue.pipelines["Triangle Pipeline"] = pipeline;
 }
 
 void MB_Engine::init_colored_pipeline() {
@@ -308,11 +300,80 @@ void MB_Engine::init_colored_pipeline() {
   pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipeline_builder.set_multisampling_none();
-  pipeline_builder.set_pipeline_layout(_triangle_layout);
+  pipeline_builder.set_pipeline_layout(pipeline_queue.pipeline_layouts["Triangle Layout"]);
   pipeline_builder.disable_blending();
-  _colored_pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
+  VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
 
-  pipeline_queue.pipelines.push_back(_colored_pipeline);
+  pipeline_queue.pipelines["Colored Pipeline"] = pipeline;
+}
+
+void MB_Engine::init_mesh_pipeline() {
+  Pipeline pipeline_builder(device->get_device());
+  pipeline_builder.set_shaders("shaders/tri_mesh.vert.spv", "shaders/colored_triangle.frag.spv");
+
+  VertexInputDescription vertex_description = Vertex::get_vertex_description();
+  pipeline_builder._vertex_input_info.pVertexAttributeDescriptions = vertex_description.attributes.data();
+  pipeline_builder._vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_description.attributes.size());
+  pipeline_builder._vertex_input_info.pVertexBindingDescriptions = vertex_description.bindings.data();
+  pipeline_builder._vertex_input_info.vertexBindingDescriptionCount = static_cast<uint32_t>(vertex_description.bindings.size());
+
+  pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+  pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+  pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipeline_builder.set_multisampling_none();
+  pipeline_builder.set_pipeline_layout(pipeline_queue.pipeline_layouts["Triangle Layout"]);
+  pipeline_builder.disable_blending();
+  VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
+
+  pipeline_queue.pipelines["Mesh Pipeline"] = pipeline;
+}
+
+void MB_Engine::load_meshes() {
+  _triangle_mesh._vertices.resize(3);
+
+  _triangle_mesh._vertices.resize(3);
+
+	//vertex positions
+	_triangle_mesh._vertices[0].position = { 1.f, 1.f, 0.0f };
+	_triangle_mesh._vertices[1].position = {-1.f, 1.f, 0.0f };
+	_triangle_mesh._vertices[2].position = { 0.f,-1.f, 0.0f };
+
+	//vertex colors, all green
+	_triangle_mesh._vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
+	_triangle_mesh._vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
+	_triangle_mesh._vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+
+	//we don't care about the vertex normals
+
+	upload_mesh(_triangle_mesh);
+}
+
+void MB_Engine::upload_mesh(Mesh& mesh) {
+  VkBufferCreateInfo buffer_info {};
+  buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+
+  buffer_info.size = mesh._vertices.size() * sizeof(Vertex);
+
+  buffer_info.usage =  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;;
+
+  VmaAllocationCreateInfo vma_alloc_info {};
+  vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+  VK_CHECK(vmaCreateBuffer(_allocator, &buffer_info, &vma_alloc_info,
+    &mesh._vertexBuffer._buffer,
+    &mesh._vertexBuffer._allocation,
+    nullptr
+  ));
+
+  _main_deletion_queue.meshes.push_back(&mesh);
+
+  void* data;
+  vmaMapMemory(_allocator, mesh._vertexBuffer._allocation, &data);
+
+  memcpy(data, mesh._vertices.data(), mesh._vertices.size() * sizeof(Vertex));
+
+  vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
+
 }
 
 /**
@@ -325,18 +386,14 @@ void MB_Engine::draw() {
 
   // grab the next image from the swaphchain
   uint32_t swapchain_image_index;
-  VkResult swapchain_status = vkAcquireNextImageKHR(
+  VK_CHECK(vkAcquireNextImageKHR(
     _device, 
     swapchain->get_swapchain(),
     1000000000,
     cmd->get_current_frame()._swapchain_semaphore,
     nullptr, 
     &swapchain_image_index
-  );
-  if (swapchain_status = VK_ERROR_OUT_OF_DATE_KHR) {
-    resize_requested = true;
-    return;
-  }
+  ));
   
   cmd->begin_recording(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
   //cmd->draw_background(swapchain, _window_extent, swapchain_image_index);
@@ -362,9 +419,9 @@ void MB_Engine::draw() {
 
   //--- RENDERING COMMANDS ---//
 
-  cmd->bind_pipeline(pipeline_queue.pipelines[_selected_shader], VK_PIPELINE_BIND_POINT_GRAPHICS);
+  cmd->bind_pipeline(pipeline_queue.pipelines["Mesh Pipeline"], VK_PIPELINE_BIND_POINT_GRAPHICS);
   cmd->set_window(_window_extent);
-  cmd->draw_geometry(3, 1, 0, 0);
+  cmd->draw_geometry(&_triangle_mesh, 1, 0, 0);
  
   cmd->end_renderpass();
   cmd->end_recording();

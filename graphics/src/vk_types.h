@@ -20,6 +20,11 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
+struct AllocatedBuffer {
+  VkBuffer _buffer;
+  VmaAllocation _allocation;
+};
+
 //< node_types
 //> intro
 #define VK_CHECK(x)                                                     \

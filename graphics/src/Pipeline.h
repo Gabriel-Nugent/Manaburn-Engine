@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <string>
+#include <unordered_map>
 
 #include <vulkan/vulkan.h>
 #include <fmt/core.h>
@@ -13,15 +15,15 @@ namespace GRAPHICS
 {
 
 struct Pipeline_Queue {
-  std::vector<VkPipeline> pipelines;
-  std::vector<VkPipelineLayout> pipeline_layouts;
+  std::unordered_map<std::string, VkPipeline> pipelines;
+  std::unordered_map<std::string, VkPipelineLayout> pipeline_layouts;
 
   void flush(VkDevice _device) {
-    for (VkPipeline pipeline : pipelines) {
-      vkDestroyPipeline(_device, pipeline, nullptr);
+    for (auto pipeline : pipelines) {
+      vkDestroyPipeline(_device, pipeline.second, nullptr);
     }
-    for (VkPipelineLayout layout : pipeline_layouts) {
-      vkDestroyPipelineLayout(_device, layout, nullptr);
+    for (auto layout : pipeline_layouts) {
+      vkDestroyPipelineLayout(_device, layout.second, nullptr);
     }
   }
 };
