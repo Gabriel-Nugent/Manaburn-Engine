@@ -1,5 +1,7 @@
 #include "MB_Engine.h"
 
+#include <glm/gtx/transform.hpp>
+
 #define VMA_IMPLEMENTATION
 #include "../external_src/vk_mem_alloc.h"
 
@@ -308,6 +310,9 @@ void MB_Engine::init_colored_pipeline() {
 }
 
 void MB_Engine::init_mesh_pipeline() {
+  VkPipelineLayout layout;
+  vklayout::Layout::mesh_layout(_device, &layout);
+
   Pipeline pipeline_builder(device->get_device());
   pipeline_builder.set_shaders("shaders/tri_mesh.vert.spv", "shaders/colored_triangle.frag.spv");
 
@@ -321,10 +326,11 @@ void MB_Engine::init_mesh_pipeline() {
   pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
   pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipeline_builder.set_multisampling_none();
-  pipeline_builder.set_pipeline_layout(pipeline_queue.pipeline_layouts["Triangle Layout"]);
+  pipeline_builder.set_pipeline_layout(layout);
   pipeline_builder.disable_blending();
   VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
 
+  pipeline_queue.pipeline_layouts["Mesh Layout"] = layout;
   pipeline_queue.pipelines["Mesh Pipeline"] = pipeline;
 }
 
@@ -374,6 +380,10 @@ void MB_Engine::upload_mesh(Mesh& mesh) {
 
   vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
 
+}
+
+void MB_Engine::init_camera() {
+  camera = new Camera();
 }
 
 /**

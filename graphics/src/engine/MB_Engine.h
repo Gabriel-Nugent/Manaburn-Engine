@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 #include <fmt/core.h>
+#include <glm/glm.hpp>
 
 #include <vector>
 #include <stdexcept>
@@ -13,14 +14,15 @@
 #include <string>
 #include <map>
 
-#include "vk_types.h"
-#include "vk_descriptors.h"
-#include "Device.h"
-#include "Swapchain.h"
-#include "Image.h"
-#include "Pipeline.h"
-#include "Cmd.h"
+#include "../vulkan_util/vk_types.h"
+#include "../vulkan_util/vk_descriptors.h"
+#include "../vulkan/Device.h"
+#include "../vulkan/Swapchain.h"
+#include "../vulkan/Image.h"
+#include "../vulkan/Pipeline.h"
+#include "../vulkan/Cmd.h"
 #include "Object.h"
+#include "Camera.h"
 
 //--- LOAD IN VULKAN EXTENSION FUNCTIONS ---//
 
@@ -73,6 +75,11 @@ const std::vector<const char*> instance_extensions = {
 namespace GRAPHICS
 {
 
+struct MeshPushConstants {
+  glm::vec4 data;
+  glm::mat4 render_matrix;
+};
+
 class MB_Engine
 {
 public:
@@ -113,6 +120,7 @@ private:
   Image* image;
   Cmd* cmd;
   Pipeline* pipeline;
+  Camera* camera;
 
   void init_vulkan();
   void create_window();
@@ -133,6 +141,8 @@ private:
 
   void load_meshes();
   void upload_mesh(Mesh &mesh);
+
+  void init_camera();
 
   void draw();
 

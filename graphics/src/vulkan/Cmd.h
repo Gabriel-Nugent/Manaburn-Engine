@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "vk_types.h"
+#include "../vulkan_util/vk_types.h"
 #include "Device.h"
 #include "Swapchain.h"
-#include "Object.h"
+#include "../engine/Object.h"
 
 static VkResult queue_submit(VkDevice _device, VkQueue queue, uint32_t submitCount, 
 const VkSubmitInfo2* pSubmits, VkFence fence) {
