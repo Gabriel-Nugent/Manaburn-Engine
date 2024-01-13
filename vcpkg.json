@@ -6,6 +6,7 @@
         "name": "sdl2",
         "features": ["vulkan"]
       },
-      "fmt"
+      "fmt",
+      "tinyobjloader"
   ]
 }

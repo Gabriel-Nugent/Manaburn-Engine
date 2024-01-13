@@ -20,6 +20,7 @@ void Pipeline::clear() {
 	_color_blend_attachment = {};
 	_multisampling = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	_pipeline_layout = {};
+  _depth_stencil = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
 	_shader_stages.clear();
 
   if (vert_shader != VK_NULL_HANDLE) {
@@ -64,6 +65,7 @@ VkPipeline Pipeline::build_pipeline(VkRenderPass pass) {
   pipeline_info.pRasterizationState = &_rasterizer;
   pipeline_info.pMultisampleState = &_multisampling;
   pipeline_info.pColorBlendState = &color_blending;
+  pipeline_info.pDepthStencilState = &_depth_stencil;
   pipeline_info.layout = _pipeline_layout;
   pipeline_info.renderPass = pass;
   pipeline_info.subpass = 0;
@@ -157,6 +159,16 @@ void Pipeline::set_multisampling_none() {
 
 void Pipeline::set_pipeline_layout(VkPipelineLayout layout) {
   _pipeline_layout = layout;
+}
+
+void Pipeline::default_depth_stencil(bool depth_test, bool depth_write, VkCompareOp compareOp) {
+  _depth_stencil.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
+  _depth_stencil.depthWriteEnable = depth_write ? VK_TRUE : VK_FALSE;
+  _depth_stencil.depthCompareOp = depth_test ? compareOp : VK_COMPARE_OP_ALWAYS;
+  _depth_stencil.depthBoundsTestEnable = VK_FALSE;
+  _depth_stencil.minDepthBounds = 0.0f;
+  _depth_stencil.maxDepthBounds = 1.0f;
+  _depth_stencil.stencilTestEnable = VK_FALSE;
 }
 
 void Pipeline::disable_blending() {

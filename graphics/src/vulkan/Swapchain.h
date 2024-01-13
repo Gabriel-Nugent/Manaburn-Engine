@@ -9,7 +9,9 @@
 #include <limits>
 #include <algorithm>
 
+#include "../../external_src/vk_mem_alloc.h"
 #include "Device.h"
+#include "Image.h"
 
 namespace GRAPHICS
 {
@@ -26,7 +28,8 @@ public:
     VkInstance instance, 
     Device* device,
     VkSurfaceKHR surface,
-    SDL_Window* window
+    SDL_Window* window,
+    VmaAllocator allocator
   );
   ~Swapchain();
 
@@ -37,21 +40,28 @@ public:
   std::vector<VkFramebuffer> get_framebuffers(){return _framebuffers;}
 
   void create_default();
-  void create();
   void resize(VkExtent2D _window_extent);
 
   void init_default_renderpass();
   void init_framebuffers();
+  void init_depth_image(VkExtent2D _window_extent);
+
+  VkRenderPassBeginInfo renderpass_begin_info(VkExtent2D _window_extent, uint32_t swapchain_image_index);
+
+  // image handles
+  Image* _depth_image;
 private:
   // Vulkan handles
   VkInstance _instance;
   VkPhysicalDevice _gpu;
   VkSurfaceKHR _surface;
   SDL_Window* _window;
+  Device* device;
+  VmaAllocator _allocator;
+
+  // Swapchain handles
   VkSwapchainKHR _swapchain;
   VkSwapchainKHR _old_swapchain = VK_NULL_HANDLE;
-
-  Device* device;
   Swapchain_details details;
   VkSwapchainCreateInfoKHR old_create_info{};
   VkFormat swapchain_image_format;
@@ -59,6 +69,7 @@ private:
   std::vector<VkImage> swapchain_images;
   std::vector<VkImageView> swapchain_image_views;
 
+  // Secondary handles
   VkRenderPass _renderpass;
 	std::vector<VkFramebuffer> _framebuffers;
 

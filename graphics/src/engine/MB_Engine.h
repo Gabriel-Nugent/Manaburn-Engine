@@ -12,7 +12,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 #include "../vulkan_util/vk_types.h"
 #include "../vulkan_util/vk_util.h"
@@ -81,6 +81,16 @@ struct MeshPushConstants {
   glm::mat4 render_matrix;
 };
 
+struct Obj_Queue {
+  std::unordered_map<std::string, Object*> map;
+
+  void flush() {
+    for (auto obj : map) {
+      delete obj.second;
+    }
+  }
+};
+
 class MB_Engine
 {
 public:
@@ -111,9 +121,7 @@ private:
 
   // Graphics Pipelines handles
   Pipeline_Queue pipeline_queue;
-
-  // mesh handles
-  Mesh _triangle_mesh;
+  Obj_Queue mb_objs;
 
   // Wrapper handles
   Device* device;
@@ -141,7 +149,6 @@ private:
   void init_mesh_pipeline();
 
   void load_meshes();
-  void upload_mesh(Mesh &mesh);
 
   void init_camera();
 

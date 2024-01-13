@@ -7,6 +7,7 @@ project(graphics)
 find_package(glm CONFIG REQUIRED)
 find_package(sdl2 CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
 
 option(AUTO_LOCATE_VULKAN "AUTO_LOCATE_VULKAN" ON)
 
@@ -94,6 +95,7 @@ target_link_libraries(graphics
       glm::glm
       Vulkan::Vulkan
       fmt::fmt-header-only
+      tinyobjloader::tinyobjloader
 )
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

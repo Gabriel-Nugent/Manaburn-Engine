@@ -38,6 +38,7 @@ public:
   VkPipelineColorBlendAttachmentState _color_blend_attachment;
   VkPipelineMultisampleStateCreateInfo _multisampling;
   VkPipelineLayout _pipeline_layout;
+  VkPipelineDepthStencilStateCreateInfo _depth_stencil;
 
   Pipeline(VkDevice device){ 
     clear();
@@ -57,6 +58,7 @@ public:
   void set_cull_mode(VkCullModeFlags cull_mode, VkFrontFace front_face);
   void set_multisampling_none();
   void set_pipeline_layout(VkPipelineLayout layout);
+  void default_depth_stencil(bool depth_test, bool depth_write, VkCompareOp compareOp);
   void disable_blending();
 
 private:

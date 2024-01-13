@@ -7,8 +7,9 @@ Swapchain::Swapchain(
   VkInstance instance, 
   Device* device, 
   VkSurfaceKHR surface,
-  SDL_Window* window)
-: _instance(instance), device(device), _surface(surface), _window(window) {
+  SDL_Window* window,
+  VmaAllocator allocator)
+: _instance(instance), device(device), _surface(surface), _window(window), _allocator(allocator) {
   _gpu = device->get_gpu();
 }
 
@@ -22,6 +23,8 @@ Swapchain::~Swapchain() {
   for (auto image_view : swapchain_image_views) {
     vkDestroyImageView(device->get_device(), image_view, nullptr);
   }
+
+  delete _depth_image;
 
   vkDestroySwapchainKHR(device->get_device(), _swapchain, nullptr);
 }
@@ -93,10 +96,6 @@ void Swapchain::create_default() {
   create_image_views();
 }
 
-void Swapchain::create() {
-
-}
-
 void Swapchain::resize(VkExtent2D _window_extent) {
 
 }
@@ -123,20 +122,59 @@ void Swapchain::init_default_renderpass() {
 	//attachment number will index into the pAttachments array in the parent renderpass itself
 	color_attachment_ref.attachment = 0;
 	color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkAttachmentDescription depth_attachment = {};
+  depth_attachment.flags = 0;
+  depth_attachment.format = _depth_image->_format;
+  depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  VkAttachmentReference depth_attachment_ref = {};
+  depth_attachment_ref.attachment = 1;
+  depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	//we are going to create 1 subpass, which is the minimum you can do
 	VkSubpassDescription subpass = {};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &color_attachment_ref;
+  subpass.pDepthStencilAttachment = &depth_attachment_ref;
+
+  VkAttachmentDescription attachments[2] = { color_attachment,depth_attachment };
+
+  VkSubpassDependency dependency = {};
+  dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependency.dstSubpass = 0;
+  dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependency.srcAccessMask = 0;
+  dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+  VkSubpassDependency depth_dependency = {};
+  depth_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+  depth_dependency.dstSubpass = 0;
+  depth_dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  depth_dependency.srcAccessMask = 0;
+  depth_dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  depth_dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+  VkSubpassDependency dependencies[2] = { dependency, depth_dependency };
 
   VkRenderPassCreateInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	//connect the color attachment to the info
-	render_pass_info.attachmentCount = 1;
-	render_pass_info.pAttachments = &color_attachment;
+	render_pass_info.attachmentCount = 2;
+	render_pass_info.pAttachments = &attachments[0];
 	//connect the subpass to the info
 	render_pass_info.subpassCount = 1;
 	render_pass_info.pSubpasses = &subpass;
+  render_pass_info.dependencyCount = 2;
+  render_pass_info.pDependencies = &dependencies[0];
 
 	if (vkCreateRenderPass(device->get_device(), &render_pass_info, nullptr, &_renderpass) != VK_SUCCESS) {
     throw std::runtime_error("failed to create renderpass!");
@@ -162,11 +200,23 @@ void Swapchain::init_framebuffers() {
 	//create framebuffers for each of the swapchain image views
 	for (uint32_t i = 0; i < swapchain_imagecount; i++) {
 
-		fb_info.pAttachments = &swapchain_image_views[i];
+    VkImageView attachments[2];
+		attachments[0] = swapchain_image_views[i];
+    attachments[1] = _depth_image->_image_view;
+
+    fb_info.pAttachments = attachments;
+    fb_info.attachmentCount = 2;
+
 		if (vkCreateFramebuffer(device->get_device(), &fb_info, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create framebuffer");
     }
 	}
+}
+
+void Swapchain::init_depth_image(VkExtent2D _window_extent) {
+  //depth image size will match window
+  _depth_image = new Image(_allocator, device->get_device());
+  _depth_image->create_depth_image(_window_extent);
 }
 
 void Swapchain::query_swapchain_details() {
@@ -275,5 +325,18 @@ void Swapchain::create_image_views() {
   }
 }
 
+VkRenderPassBeginInfo Swapchain::renderpass_begin_info(VkExtent2D _window_extent, uint32_t swapchain_image_index) {
+  VkRenderPassBeginInfo renderpass_info{};
+  renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderpass_info.pNext = nullptr;
+
+  renderpass_info.renderPass = _renderpass;
+	renderpass_info.renderArea.offset.x = 0;
+	renderpass_info.renderArea.offset.y = 0;
+	renderpass_info.renderArea.extent = _window_extent;
+	renderpass_info.framebuffer = _framebuffers[swapchain_image_index];
+
+  return renderpass_info;
+}
 
 } // namespace MB

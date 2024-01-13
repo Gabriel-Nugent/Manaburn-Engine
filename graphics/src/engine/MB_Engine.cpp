@@ -3,7 +3,7 @@
 #include <glm/gtx/transform.hpp>
 
 #define VMA_IMPLEMENTATION
-#include "../external_src/vk_mem_alloc.h"
+#include "../../external_src/vk_mem_alloc.h"
 
 
 namespace GRAPHICS
@@ -99,12 +99,12 @@ void MB_Engine::cleanup() {
     }
     
     vkDeviceWaitIdle(_device);
-    _main_deletion_queue.flush_meshes(_allocator);
+    mb_objs.flush();
     pipeline_queue.flush(_device);
-    vmaDestroyAllocator(_allocator);
     delete camera;
     delete cmd;
     delete swapchain;
+    vmaDestroyAllocator(_allocator);
     delete device;
 
     SDL_DestroyWindow(_window);
@@ -253,12 +253,13 @@ void MB_Engine::init_memory_allocator() {
 }
 
 /**
- * @brief Initializes the swaphchain and its resources:
- *          Images, Image Views, Renderpass, Framebuffers
+ * @brief Initializes the swapchain and its resources:
+ *          Images, Image Views, Renderpass, Framebuffers, Depth Images
  */
 void MB_Engine::create_swapchain() {
-  swapchain = new Swapchain(_instance, device, _surface, _window);
+  swapchain = new Swapchain(_instance, device, _surface, _window, _allocator);
   swapchain->create_default();
+  swapchain->init_depth_image(_window_extent);
   swapchain->init_default_renderpass();
   swapchain->init_framebuffers();
 }
@@ -289,6 +290,7 @@ void MB_Engine::init_triangle_pipeline() {
   pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipeline_builder.set_multisampling_none();
   pipeline_builder.set_pipeline_layout(layout);
+  pipeline_builder.default_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
   pipeline_builder.disable_blending();
   VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
 
@@ -305,6 +307,7 @@ void MB_Engine::init_colored_pipeline() {
   pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipeline_builder.set_multisampling_none();
   pipeline_builder.set_pipeline_layout(pipeline_queue.pipeline_layouts["Triangle Layout"]);
+  pipeline_builder.default_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
   pipeline_builder.disable_blending();
   VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
 
@@ -329,6 +332,7 @@ void MB_Engine::init_mesh_pipeline() {
   pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
   pipeline_builder.set_multisampling_none();
   pipeline_builder.set_pipeline_layout(layout);
+  pipeline_builder.default_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
   pipeline_builder.disable_blending();
   VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
 
@@ -337,8 +341,9 @@ void MB_Engine::init_mesh_pipeline() {
 }
 
 void MB_Engine::load_meshes() {
+  // create triangle mesh for testing
+  Mesh _triangle_mesh;
   _triangle_mesh._vertices.resize(3);
-
   _triangle_mesh._vertices.resize(3);
 
 	//vertex positions
@@ -347,41 +352,18 @@ void MB_Engine::load_meshes() {
 	_triangle_mesh._vertices[2].position = { 0.f,-1.f, 0.0f };
 
 	//vertex colors, all green
+  //we don't care about the vertex normals
 	_triangle_mesh._vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
 	_triangle_mesh._vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
 	_triangle_mesh._vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
 
-	//we don't care about the vertex normals
-
-	upload_mesh(_triangle_mesh);
-}
-
-void MB_Engine::upload_mesh(Mesh& mesh) {
-  VkBufferCreateInfo buffer_info {};
-  buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-
-  buffer_info.size = mesh._vertices.size() * sizeof(Vertex);
-
-  buffer_info.usage =  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;;
-
-  VmaAllocationCreateInfo vma_alloc_info {};
-  vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-
-  VK_CHECK(vmaCreateBuffer(_allocator, &buffer_info, &vma_alloc_info,
-    &mesh._vertexBuffer._buffer,
-    &mesh._vertexBuffer._allocation,
-    nullptr
-  ));
-
-  _main_deletion_queue.meshes.push_back(&mesh);
-
-  void* data;
-  vmaMapMemory(_allocator, mesh._vertexBuffer._allocation, &data);
-
-  memcpy(data, mesh._vertices.data(), mesh._vertices.size() * sizeof(Vertex));
-
-  vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
-
+  // upload objects to the GPU
+  Object* triangle_obj = new Object(_triangle_mesh, _allocator);
+  Object* monkey_obj = new Object("meshes/monkey_smooth.obj", _allocator);
+  mb_objs.map["Triangle"] = triangle_obj;
+  mb_objs.map["Monkey"] = monkey_obj;
+  triangle_obj->upload_mesh();
+  monkey_obj->upload_mesh();
 }
 
 void MB_Engine::init_camera() {
@@ -411,21 +393,14 @@ void MB_Engine::draw() {
   //cmd->draw_background(swapchain, _window_extent, swapchain_image_index);
 
   VkClearValue clear_value;
-  float flash = static_cast<float>(abs(sin(_frame_number / 120.f)));
-  clear_value.color = { { 0.0f, 0.0f, flash, 1.0f } };
+  clear_value.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+  VkClearValue depth_clear;
+  depth_clear.depthStencil.depth = 1.f;
 
-  VkRenderPassBeginInfo renderpass_info{};
-  renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderpass_info.pNext = nullptr;
-
-  renderpass_info.renderPass = swapchain->get_renderpass();
-	renderpass_info.renderArea.offset.x = 0;
-	renderpass_info.renderArea.offset.y = 0;
-	renderpass_info.renderArea.extent = _window_extent;
-	renderpass_info.framebuffer = swapchain->get_framebuffers()[swapchain_image_index];
-
-  renderpass_info.clearValueCount = 1;
-  renderpass_info.pClearValues = &clear_value;
+  VkRenderPassBeginInfo renderpass_info = swapchain->renderpass_begin_info(_window_extent, swapchain_image_index);
+  renderpass_info.clearValueCount = 2;
+  VkClearValue clear_values[] = { clear_value, depth_clear };
+  renderpass_info.pClearValues = &clear_values[0];
 
   cmd->begin_renderpass(&renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -445,7 +420,7 @@ void MB_Engine::draw() {
     &constants
   );
 
-  cmd->draw_geometry(&_triangle_mesh, 1, 0, 0);
+  cmd->draw_geometry(&mb_objs.map["Monkey"]->mesh, 1, 0, 0);
  
   cmd->end_renderpass();
   cmd->end_recording();
