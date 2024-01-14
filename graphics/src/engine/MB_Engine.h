@@ -76,11 +76,6 @@ const std::vector<const char*> instance_extensions = {
 namespace GRAPHICS
 {
 
-struct MeshPushConstants {
-  glm::vec4 data;
-  glm::mat4 render_matrix;
-};
-
 struct Obj_Queue {
   std::unordered_map<std::string, Object*> map;
 
@@ -121,7 +116,11 @@ private:
 
   // Graphics Pipelines handles
   Pipeline_Queue pipeline_queue;
+
+  // Engine objects
   Obj_Queue mb_objs;
+  std::unordered_map<std::string, Material> materials;
+  std::vector<Object*> _renderables;
 
   // Wrapper handles
   Device* device;
@@ -151,6 +150,8 @@ private:
   void load_meshes();
 
   void init_camera();
+
+  void init_scene();
 
   void draw();
 

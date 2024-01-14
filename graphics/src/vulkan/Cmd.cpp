@@ -96,6 +96,40 @@ void Cmd::set_push_constants(VkPipelineLayout layout, VkShaderStageFlags flags, 
   vkCmdPushConstants(current_cmd, layout, flags, offset, size, push_values);
 };
 
+void Cmd::draw_objects(glm::vec3 cam_pos, Object** first, size_t count) {
+  // calculate camera view and projection
+  glm::mat4 view = glm::translate(glm::mat4(1.f), cam_pos);
+  glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+  projection[1][1] *= -1;
+
+  Mesh* last_mesh = nullptr;
+  Material* last_material = nullptr;
+  for (int i = 0; i < count; i++) {
+    Object* object  = first[i];
+
+    // no need to bind new pipeline if it is the same one as the last
+    if (&object->material != last_material) {
+      bind_pipeline(object->material._pipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      last_material = &object->material;
+    }
+
+    // final render mtx
+    glm::mat4 model = object->transform_mtx;
+    glm::mat4 mesh_mtx = projection * view * model;
+    MeshPushConstants constants;
+    constants.render_matrix = mesh_mtx;
+    set_push_constants(object->material._pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+    
+    if (&object->mesh != last_mesh) {
+      VkDeviceSize offset = 0;
+      vkCmdBindVertexBuffers(current_cmd, 0, 1, &object->mesh._vertexBuffer._buffer, &offset);
+      last_mesh = &object->mesh;
+    }
+
+    vkCmdDraw(current_cmd, static_cast<uint32_t>(object->mesh._vertices.size()), 1, 0, 0);
+  }
+}
+
 void Cmd::draw_geometry(Mesh* mesh, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) {
   VkDeviceSize offset  = 0;
   vkCmdBindVertexBuffers(current_cmd, 0, 1, &mesh->_vertexBuffer._buffer, &offset);

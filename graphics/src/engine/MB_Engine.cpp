@@ -24,6 +24,7 @@ void MB_Engine::init() {
   init_vulkan();
   load_meshes();
   init_camera();
+  init_scene();
   _initialized = true;
 }
 
@@ -58,20 +59,31 @@ while (!should_quit) {
           break;
       }
     }
-     else if (event.type == SDL_KEYDOWN) {
+    // handles camera movement
+    else if (event.type == SDL_KEYDOWN) {
       switch (event.key.keysym.sym) {
-        case SDLK_SPACE:
-          // move to next pipeline
-          _selected_shader += 1;
-          // loop over to first pipeline if last pipeline is reached
-          if(_selected_shader > pipeline_queue.pipelines.size() - 1) {
-            _selected_shader = 0;
-          }
+        case SDLK_a:
+          camera->pos.x += 0.2f;
+          break;
+
+        case SDLK_d:
+          camera->pos.x -= 0.2f;
+          break;
+
+        case SDLK_w:
+          camera->pos.y -= 0.2f;
+          break;
+
+        case SDLK_s:
+          camera->pos.y += 0.2f;
           break;
 
         default:
           break;
       }
+    }
+    else if (event.type == SDL_MOUSEWHEEL) {
+      camera->pos.z += (event.wheel.preciseY * 0.5f);
     }
   }
 
@@ -338,6 +350,10 @@ void MB_Engine::init_mesh_pipeline() {
 
   pipeline_queue.pipeline_layouts["Mesh Layout"] = layout;
   pipeline_queue.pipelines["Mesh Pipeline"] = pipeline;
+
+  Material mat;
+  mat.create_material(pipeline, layout);
+  materials["mesh"] = mat;
 }
 
 void MB_Engine::load_meshes() {
@@ -360,6 +376,8 @@ void MB_Engine::load_meshes() {
   // upload objects to the GPU
   Object* triangle_obj = new Object(_triangle_mesh, _allocator);
   Object* monkey_obj = new Object("meshes/monkey_smooth.obj", _allocator);
+  triangle_obj->material = materials["mesh"];
+  monkey_obj->material = materials["mesh"];
   mb_objs.map["Triangle"] = triangle_obj;
   mb_objs.map["Monkey"] = monkey_obj;
   triangle_obj->upload_mesh();
@@ -368,6 +386,12 @@ void MB_Engine::load_meshes() {
 
 void MB_Engine::init_camera() {
   camera = new Camera();
+}
+
+void MB_Engine::init_scene() {
+  Object* monkey = mb_objs.map["Monkey"];
+  monkey->transform_mtx = glm::mat4{ 1.0f };
+  _renderables.push_back(monkey);
 }
 
 /**
@@ -406,22 +430,10 @@ void MB_Engine::draw() {
 
   //--- RENDERING COMMANDS ---//
 
-  cmd->bind_pipeline(pipeline_queue.pipelines["Mesh Pipeline"], VK_PIPELINE_BIND_POINT_GRAPHICS);
   cmd->set_window(_window_extent);
-
-  // set object render matrix
-  MeshPushConstants constants;
-  constants.render_matrix = vkutil::calc_render_matrix(camera->pos, _frame_number);
-  cmd->set_push_constants(
-    pipeline_queue.pipeline_layouts["Mesh Layout"], 
-    VK_SHADER_STAGE_VERTEX_BIT, 
-    0,
-    sizeof(MeshPushConstants),
-    &constants
-  );
-
-  cmd->draw_geometry(&mb_objs.map["Monkey"]->mesh, 1, 0, 0);
  
+  cmd->draw_objects(camera->pos, _renderables.data(), _renderables.size());
+
   cmd->end_renderpass();
   cmd->end_recording();
 

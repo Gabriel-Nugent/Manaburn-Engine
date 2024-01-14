@@ -40,7 +40,25 @@ VertexInputDescription Vertex::get_vertex_description() {
 	return description;
 }
 
-bool Mesh::load_from_obj(const char* filename) {
+void Material::create_material(VkPipeline pipeline, VkPipelineLayout layout) {
+  _pipeline = pipeline;
+  _pipelineLayout = layout;
+}
+
+Object::Object(const char* filename, VmaAllocator allocator) : _allocator(allocator) {
+  bool result = load_obj(filename);
+}
+
+Object::Object(Mesh cpy_mesh, VmaAllocator allocator) : _allocator(allocator), mesh(cpy_mesh){}
+
+Object::~Object() {
+  if (is_uploaded) {
+    vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
+  }
+}
+
+bool Object::load_obj(const char* filename) {
+
   tinyobj::attrib_t attrib; // vertex arrays for file
   std::vector<tinyobj::shape_t> shapes; // contains info for each object in file
   std::vector<tinyobj::material_t> materials; // materials for each shape
@@ -92,25 +110,13 @@ bool Mesh::load_from_obj(const char* filename) {
         //temporarily setting vertex color as the vertex normal
         new_vert.color = new_vert.normal;
 
-        _vertices.push_back(new_vert);
+        mesh._vertices.push_back(new_vert);
       }
       index_offset += fv;
     }
   }
 
   return true;
-}
-
-Object::Object(const char* filename, VmaAllocator allocator) : _allocator(allocator) {
-  mesh.load_from_obj(filename);
-}
-
-Object::Object(Mesh cpy_mesh, VmaAllocator allocator) : _allocator(allocator), mesh(cpy_mesh){}
-
-Object::~Object() {
-  if (is_uploaded) {
-    vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
-  }
 }
 
 void Object::upload_mesh() {

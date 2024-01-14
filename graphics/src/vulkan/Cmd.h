@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/gtx/transform.hpp>
+
 #include <vector>
 
 #include "../vulkan_util/vk_types.h"
@@ -20,6 +22,11 @@ const VkSubmitInfo2* pSubmits, VkFence fence) {
 
 namespace GRAPHICS
 {
+
+struct MeshPushConstants {
+  glm::vec4 data;
+  glm::mat4 render_matrix;
+};
 
 /**
  * @brief queue for holding memory objects that need to 
@@ -61,8 +68,11 @@ public:
   void begin_renderpass(VkRenderPassBeginInfo* begin_info, VkSubpassContents contents);
   void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point);
   void set_window(const VkExtent2D _window_extent);
+
   void set_push_constants(VkPipelineLayout layout, VkShaderStageFlags flags, uint32_t offset, uint32_t size, const void* push_values);
+  void draw_objects(glm::vec3 cam_pos, Object** first, size_t count);
   void draw_geometry(Mesh* mesh, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
+
   void end_recording();
   void end_renderpass();
 
