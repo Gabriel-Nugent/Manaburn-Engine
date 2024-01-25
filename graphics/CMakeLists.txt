@@ -13,7 +13,7 @@ option(AUTO_LOCATE_VULKAN "AUTO_LOCATE_VULKAN" ON)
 
 if(AUTO_LOCATE_VULKAN)
 	message(STATUS "Attempting auto locate Vulkan using CMake......")
-	
+
 	# Find Vulkan Path using CMake's Vulkan Module
 	# This will return Boolean 'Vulkan_FOUND' indicating the status of find as success(ON) or fail(OFF).
 	# Include directory path - 'Vulkan_INCLUDE_DIRS' and 'Vulkan_LIBRARY' with required libraries.

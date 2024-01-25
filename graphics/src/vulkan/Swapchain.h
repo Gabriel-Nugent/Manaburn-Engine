@@ -1,20 +1,11 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include "../vulkan_util/vk_types.h"
+#include "device.h"
+#include "image.h"
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
-
-#include <vector>
-#include <cstdint>
-#include <limits>
-#include <algorithm>
-
-#include "../../external_src/vk_mem_alloc.h"
-#include "Device.h"
-#include "Image.h"
-
-namespace GRAPHICS
-{
 
 struct Swapchain_details {
   VkSurfaceCapabilitiesKHR capabilities;
@@ -23,64 +14,60 @@ struct Swapchain_details {
 };
 
 class Swapchain {
-public:
-  Swapchain(
-    VkInstance instance, 
-    Device* device,
-    VkSurfaceKHR surface,
-    SDL_Window* window,
-    VmaAllocator allocator
-  );
-  ~Swapchain();
+  public:
+    Swapchain(
+      VkInstance  instance, 
+      Device* device,
+      VkSurfaceKHR surface,
+      SDL_Window* window,
+      VmaAllocator allocator
+    );
+    ~Swapchain();
 
-  VkSwapchainKHR get_swapchain(){return _swapchain;}
-  VkFormat get_format(){return swapchain_image_format;}
-  std::vector<VkImage> get_images(){return swapchain_images;}
-  VkRenderPass get_renderpass(){return _renderpass;}
-  std::vector<VkFramebuffer> get_framebuffers(){return _framebuffers;}
+    Swapchain (const Swapchain&) = delete;
+    Swapchain& operator= (const Swapchain&) = delete;
 
-  void create_default();
-  void resize(VkExtent2D _window_extent);
+    void init(VkExtent2D _window_extent) {
+      create_default();
+      init_depth_image(_window_extent);
+      init_default_renderpass();
+      init_framebuffers();
+    }
 
-  void init_default_renderpass();
-  void init_framebuffers();
-  void init_depth_image(VkExtent2D _window_extent);
+    // Swapchain handles
+    VkSwapchainKHR _handle;
+    VkSwapchainCreateInfoKHR old_create_info{};
+    Swapchain_details details;
+    VkFormat swapchain_image_format;
+    Image* _depth_image;
+    uint32_t image_count;
+    VkExtent2D swapchain_extent;
+    std::vector<VkImage> swapchain_images;
+    std::vector<VkImageView> swapchain_image_views;
 
-  VkRenderPassBeginInfo renderpass_begin_info(VkExtent2D _window_extent, uint32_t swapchain_image_index);
+    // Secondary handles
+    VkRenderPass               _renderpass;
+	  std::vector<VkFramebuffer> _framebuffers;
 
-  // image handles
-  Image* _depth_image;
-  uint32_t image_count;
-  Swapchain_details details;
+    void renderpass_begin_info(VkRenderPassBeginInfo* renderpass_info, VkExtent2D _window_extent, uint32_t swapchain_image_index);
 
-private:
-  // Vulkan handles
-  VkInstance _instance;
-  VkPhysicalDevice _gpu;
-  VkSurfaceKHR _surface;
-  SDL_Window* _window;
-  Device* device;
-  VmaAllocator _allocator;
+  private:
+    VkInstance    _instance;
+    Device*       _device;
+    VkSurfaceKHR  _surface;
+    SDL_Window*   _window;
+    VmaAllocator  _allocator;
 
-  // Swapchain handles
-  VkSwapchainKHR _swapchain;
-  VkSwapchainKHR _old_swapchain = VK_NULL_HANDLE;
-  VkSwapchainCreateInfoKHR old_create_info{};
-  VkFormat swapchain_image_format;
-  VkExtent2D swapchain_extent;
-  std::vector<VkImage> swapchain_images;
-  std::vector<VkImageView> swapchain_image_views;
+    VkSwapchainKHR _old_swapchain = VK_NULL_HANDLE;
 
-  // Secondary handles
-  VkRenderPass _renderpass;
-	std::vector<VkFramebuffer> _framebuffers;
+    void create_default();
+    void init_default_renderpass();
+    void init_framebuffers();
+    void init_depth_image(VkExtent2D _window_extent);
 
-  void query_swapchain_details();
-  VkSurfaceFormatKHR choose_surface_format();
-  VkPresentModeKHR choose_present_mode();
-  VkExtent2D choose_extent();
-  void create_image_views();
-
+    void query_swapchain_details();
+    VkSurfaceFormatKHR choose_surface_format();
+    VkPresentModeKHR choose_present_mode();
+    VkExtent2D choose_extent();
+    void create_image_views();
 };
-
-} // namespace MB

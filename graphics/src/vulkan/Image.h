@@ -5,9 +5,6 @@
 #include "../../external_src/vk_mem_alloc.h"
 #include "../vulkan_util/vk_types.h"
 
-namespace GRAPHICS
-{
-
 class Image
 {
 public:
@@ -29,4 +26,3 @@ private:
   static VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspect_flags);
 };
 
-} // namespace GRAPHICS

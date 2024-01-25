@@ -3,7 +3,7 @@
 Cmd::Cmd(Device* _device) {
   _logical = _device->_logical;
   _graphics_queue = _device->_graphics_queue;
-  _graphics_queue_family = _device->_graphics_index;
+  _graphics_queue_family = _device->_graphics_index.value();
 }
 
 Cmd::~Cmd() {
@@ -295,11 +295,11 @@ void Cmd::draw_background(Swapchain* swapchain, VkExtent2D _window_extent, uint3
   renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderpass_info.pNext = nullptr;
 
-  renderpass_info.renderPass = swapchain->get_renderpass();
+  renderpass_info.renderPass = swapchain->_renderpass;
 	renderpass_info.renderArea.offset.x = 0;
 	renderpass_info.renderArea.offset.y = 0;
 	renderpass_info.renderArea.extent = _window_extent;
-	renderpass_info.framebuffer = swapchain->get_framebuffers()[image_index];
+	renderpass_info.framebuffer = swapchain->_framebuffers[image_index];
 
   renderpass_info.clearValueCount = 1;
   renderpass_info.pClearValues = &clear_value;

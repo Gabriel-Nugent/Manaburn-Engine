@@ -1,5 +1,21 @@
 #include "vk_interface.h"
 
+vk_interface::~vk_interface() {
+  if (_initialized) {
+    if (ENABLE_VALIDATION_LAYERS) {
+      DestroyDebugUtilsMessengerEXT(_instance, debug_messenger, nullptr);
+    }
+    delete _cmd;
+    delete _swapchain;
+    vmaDestroyAllocator(_allocator);
+    delete _device;
+    vkDestroySurfaceKHR(_instance, _surface, nullptr);
+    vkDestroyInstance(_instance, nullptr);
+
+    _initialized = false;
+  }
+}
+
 /**
  * @brief Initializes the Vulkan Instance needed to interact with the API
  */
@@ -52,6 +68,36 @@ void vk_interface::create_surface() {
   }
 }
 
+uint32_t vk_interface::get_next_image() {
+  uint32_t swapchain_image_index;
+  VK_CHECK(vkAcquireNextImageKHR(
+    _device->_logical, 
+    _swapchain->_handle,
+    1000000000,
+    _cmd->get_current_frame()._swapchain_semaphore,
+    nullptr, 
+    &swapchain_image_index
+  ));
+  return swapchain_image_index;
+}
+
+void vk_interface::draw_background(
+  VkRenderPassBeginInfo* renderpass_info, 
+  VkExtent2D _window_extent,
+  uint32_t swapchain_image_index
+) {
+  VkClearValue clear_value;
+  clear_value.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+  VkClearValue depth_clear;
+  depth_clear.depthStencil.depth = 1.f;
+
+  _swapchain->renderpass_begin_info(renderpass_info, _window_extent, swapchain_image_index);
+  renderpass_info->clearValueCount = 2;
+  clear_values[0] = clear_value;
+  clear_values[1] = depth_clear;
+  renderpass_info->pClearValues = &clear_values[0];
+}
+
 /**
  * @brief Sets up the debug messenger that interprets the validation layers
  *        and outputs them to the console
@@ -95,4 +141,14 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_interface::debugCallback(
   // output message to error log
   fmt::print(stderr, "[{}]\n{}\n",severity, pCallbackData->pMessage);
   return VK_FALSE;
+}
+
+void vk_interface::init_allocator() {
+  VmaAllocatorCreateInfo allocator_info{};
+
+  allocator_info.physicalDevice = _device->_physical;
+  allocator_info.device = _device->_logical;
+  allocator_info.instance = _instance;
+  allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  VK_CHECK(vmaCreateAllocator(&allocator_info, &_allocator));
 }

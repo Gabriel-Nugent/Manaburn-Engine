@@ -1,18 +1,16 @@
-#include "Device.h"
+#include "device.h"
 
-namespace GRAPHICS {
+#include <set>
 
-Device::Device(VkInstance instance, VkSurfaceKHR surface)
-: _instance(instance), _surface(surface) {}
-
-Device::~Device() {
-  vkDestroyDevice(_device, nullptr);
-}
-
-void Device::init() {
+Device::Device(VkInstance instance, VkSurfaceKHR surface) 
+: _instance(instance), _surface(surface) {
   pick_physical_device();
   find_queue_indices();
   create_logical_device();
+}
+
+Device::~Device() {
+  vkDestroyDevice(_logical, nullptr);
 }
 
 void Device::pick_physical_device() {
@@ -25,12 +23,12 @@ void Device::pick_physical_device() {
   // enumerate over gpus to pick the correct one
   for (auto gpu : physical_devices) {
     if(is_device_suitable(gpu)) {
-      _chosen_GPU = gpu;
+      _physical = gpu;
       break;
     }
   }
 
-  if (_chosen_GPU == VK_NULL_HANDLE) {
+  if (_physical == VK_NULL_HANDLE) {
     throw std::runtime_error("failed to find suitable gpu!");
   }
 }
@@ -62,36 +60,35 @@ bool Device::is_device_suitable(VkPhysicalDevice gpu) {
 void Device::find_queue_indices() {
   // query for physical device properties
   uint32_t property_count = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(_chosen_GPU, &property_count, nullptr);
+  vkGetPhysicalDeviceQueueFamilyProperties(_physical, &property_count, nullptr);
   std::vector<VkQueueFamilyProperties> properties(property_count);
-  vkGetPhysicalDeviceQueueFamilyProperties(_chosen_GPU, &property_count, properties.data());
+  vkGetPhysicalDeviceQueueFamilyProperties(_physical, &property_count, properties.data());
 
   for (uint32_t i = 0; i < property_count; i++) {
-    if (!_graphics_queue_index.has_value() 
+    if (!_graphics_index.has_value() 
     && (properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
       // grab first queue family that supports graphics
-      _graphics_queue_index = i;
+      _graphics_index = i;
     }
     // query for present support
     VkBool32 present_support = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(_chosen_GPU, i, _surface, &present_support);
-    if (!_present_queue_index.has_value() && present_support) {
-      _present_queue_index = i;
+    vkGetPhysicalDeviceSurfaceSupportKHR(_physical, i, _surface, &present_support);
+    if (!_present_index.has_value() && present_support) {
+      _present_index = i;
     }
     // break early if both indices have been filled
-    if (_present_queue_index.has_value() && _graphics_queue_index.has_value()) {
+    if (_present_index.has_value() && _graphics_index.has_value()) {
       break;
     }
   }
 }
 
-
 void Device::create_logical_device() {
-  // queue create infos
+    // queue create infos
 
   std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
   std::set<uint32_t> unique_queue_families = {
-    _graphics_queue_index.value(), _present_queue_index.value()
+    _graphics_index.value(), _present_index.value()
   };
 
   float queue_priority = 1.0f;
@@ -133,12 +130,10 @@ void Device::create_logical_device() {
     = static_cast<uint32_t>(device_extensions.size());
   device_info.ppEnabledExtensionNames = device_extensions.data();
 
-  if (vkCreateDevice(_chosen_GPU, &device_info, nullptr, &_device) != VK_SUCCESS) {
+  if (vkCreateDevice(_physical, &device_info, nullptr, &_logical) != VK_SUCCESS) {
     throw std::runtime_error("failed to create logical device!");
   }
 
-  vkGetDeviceQueue(_device, _graphics_queue_index.value(), 0, &_graphics_queue);
-  vkGetDeviceQueue(_device, _present_queue_index.value(), 0, &_present_queue);
+  vkGetDeviceQueue(_logical, _graphics_index.value(), 0, &_graphics_queue);
+  vkGetDeviceQueue(_logical, _present_index.value(), 0, &_present_queue);
 }
-
-} // namespace GRAPHICS

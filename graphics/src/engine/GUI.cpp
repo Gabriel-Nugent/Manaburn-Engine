@@ -1,17 +1,11 @@
-#include "GUI.h"
-
-namespace GRAPHICS
-{
-
-GUI::GUI(Device* dev, Swapchain* swap, SDL_Window* window, Cmd* cm)
-  : device(dev), swapchain(swap), _window(window), cmd(cm) {}
+#include "gui.h"
 
 GUI::~GUI() {
-  vkDestroyDescriptorPool(device->get_device(), imgui_pool, nullptr);
+  vkDestroyDescriptorPool(vk->_device->_logical, imgui_pool, nullptr);
   ImGui_ImplVulkan_Shutdown();
 }
 
-void GUI::init_imgui(VkInstance _instance) {
+void GUI::init_imgui() {
   VkDescriptorPoolSize pool_sizes[] = { 
     { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -32,7 +26,7 @@ void GUI::init_imgui(VkInstance _instance) {
 	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
-  VK_CHECK(vkCreateDescriptorPool(device->get_device(), &pool_info, nullptr, &imgui_pool));
+  VK_CHECK(vkCreateDescriptorPool(vk->_device->_logical, &pool_info, nullptr, &imgui_pool));
 
   //--- INITIALIZE IMGUI ---//
   ImGui::CreateContext();
@@ -41,21 +35,21 @@ void GUI::init_imgui(VkInstance _instance) {
 
   // imgui for vulkan
   ImGui_ImplVulkan_InitInfo init_info {};
-  init_info.Instance = _instance;
-	init_info.PhysicalDevice = device->get_gpu();
-	init_info.Device = device->get_device();
-	init_info.Queue = device->get_graphics_queue();
+  init_info.Instance = vk->_instance;
+	init_info.PhysicalDevice = vk->_device->_physical;
+	init_info.Device = vk->_device->_logical;
+	init_info.Queue = vk->_device->_graphics_queue;
 	init_info.DescriptorPool = imgui_pool;
 	init_info.MinImageCount = 3;
 	init_info.ImageCount = 3;
 	init_info.UseDynamicRendering = false;
-	init_info.ColorAttachmentFormat = swapchain->get_format();
+	init_info.ColorAttachmentFormat = vk->_swapchain->swapchain_image_format;
 
   init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-  ImGui_ImplVulkan_Init(&init_info, swapchain->get_renderpass());
+  ImGui_ImplVulkan_Init(&init_info, vk->_swapchain->_renderpass);
 
-  cmd->immediate_submit([&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
+  vk->_cmd->immediate_submit([&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
 
   ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
@@ -78,7 +72,5 @@ void GUI::begin_drawing() {
 }
 
 void GUI::draw_imgui() {
-  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd->current_cmd);
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vk->_cmd->current_cmd);
 }
-
-} // namespace GRAPHICS

@@ -2,9 +2,6 @@
 
 #include <glm/glm.hpp>
 
-namespace GRAPHICS
-{
-
 class Camera
 {
 public:
@@ -15,6 +12,4 @@ public:
   // the position of the camera in space
   glm::vec3 pos;
 };
-
-} // namespace GRAPHICS
 

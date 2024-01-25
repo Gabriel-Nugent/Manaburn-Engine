@@ -1,8 +1,11 @@
 #pragma once
 
-#include "vk_types.h"
+#include "../vulkan_util/vk_types.h"
 
 #include "device.h"
+#include "swapchain.h"
+#include "pipeline.h"
+#include "cmd.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
@@ -55,30 +58,57 @@ const std::vector<const char*> instance_extensions = {
 
 class vk_interface {
   public:
-    Device* _device;
-    swapchain* _swapchain;
-
+    VkInstance   _instance;
+    Device*      _device;
+    Swapchain*   _swapchain;
+    Cmd*         _cmd;
+    VmaAllocator _allocator;
+    
     vk_interface(SDL_Window* window) : _window(window) {};
     ~vk_interface();
 
     vk_interface (const vk_interface&) = delete;
     vk_interface& operator= (const vk_interface&) = delete;
 
-    void init() {
+    void init(VkExtent2D _window_extent) {
       init_instance();
+
       if (ENABLE_VALIDATION_LAYERS) {
         setup_debug_messenger();
       }
+
+      create_surface();
+
       _device = new Device(_instance, _surface);
+
       init_allocator();
+
+      _swapchain = new Swapchain(_instance, _device, _surface, _window, _allocator);
+      _swapchain->init(_window_extent);
+
+      _cmd = new Cmd(_device);
+      _cmd->init_commands();
+
+      _initialized = true;
     }
 
+    uint32_t get_next_image();
+
+    void draw_background(
+      VkRenderPassBeginInfo* renderpass_info, 
+      VkExtent2D _window_extent,
+      uint32_t swapchain_image_index
+    );
+
   private:
+    bool _initialized = false;
+
     VkDebugUtilsMessengerEXT debug_messenger;
-    SDL_Window* _window;
-    VkInstance _instance;
-    VkSurfaceKHR _surface;
-    VmaAllocator _allocator;
+
+    SDL_Window*   _window;
+    VkSurfaceKHR  _surface;
+
+    VkClearValue clear_values[2];
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
       VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

@@ -1,16 +1,16 @@
-#include "../../graphics/src/engine/MB_Engine.h"
+#include "../../graphics/src/engine/engine.h"
 
 #define SDL_main main
 
 //main entry point
 int main(int argc, char* argv[]){
-    GRAPHICS::MB_Engine MB_Engine;
+    MB_Engine engine;
 
-    MB_Engine.init();
+    engine.init();
 
-    MB_Engine.run();
+    engine.run();
 
-    MB_Engine.cleanup();
+    engine.cleanup();
 
     return 0;
 }

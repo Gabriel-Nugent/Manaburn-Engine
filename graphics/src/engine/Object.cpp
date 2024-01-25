@@ -1,4 +1,6 @@
-#include "Object.h"
+#include "object.h"
+
+#include <iostream>
 
 VertexInputDescription Vertex::get_vertex_description() {
   VertexInputDescription description;

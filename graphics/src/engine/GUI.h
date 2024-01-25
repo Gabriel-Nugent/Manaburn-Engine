@@ -8,30 +8,22 @@
 #include <functional>
 
 #include "../vulkan_util/vk_types.h"
-#include "../vulkan/Cmd.h"
-#include "../vulkan/Device.h"
-
-namespace GRAPHICS
-{
+#include "../vulkan/vk_interface.h"
 
 class GUI
 {
 public:
-  GUI(Device* dev, Swapchain* swap, SDL_Window* window, Cmd* cm);
+  GUI(SDL_Window* window, vk_interface* _vk) : _window(window), vk(_vk) {};
   ~GUI();
 
-  void init_imgui(VkInstance _instance);
+  void init_imgui();
   void process_event(SDL_Event *event);
   void begin_drawing();
   void draw_imgui();
 
 private:
-  Device* device;
-  Swapchain* swapchain;
-  Cmd* cmd;
+  vk_interface* vk;
   SDL_Window* _window;
 
   VkDescriptorPool imgui_pool;
 };
-
-} // namespace: GRAPHICS

@@ -1,8 +1,5 @@
 #include "Image.h"
 
-namespace GRAPHICS
-{
-
 Image::Image(VmaAllocator allocator, VkDevice device) : _allocator(allocator), _device(device) {}
 
 Image::~Image() {
@@ -75,6 +72,4 @@ VkImageViewCreateInfo Image::imageview_create_info(VkFormat format, VkImage imag
 
 	return info;
 }
-
-} // namespace GRAPHICS
 
