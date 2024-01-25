@@ -1,34 +1,36 @@
 #include "Cmd.h"
 
-namespace GRAPHICS
-{
-
-Cmd::Cmd(Device* device) {
-  _device = device->get_device();
-  _graphics_queue = device->get_graphics_queue();
-  _graphics_queue_family = device->get_graphics_index();
+Cmd::Cmd(Device* _device) {
+  _logical = _device->_logical;
+  _graphics_queue = _device->_graphics_queue;
+  _graphics_queue_family = _device->_graphics_index;
 }
 
 Cmd::~Cmd() {
   for (int i = 0; i < FRAME_OVERLAP; i++) {
-    vkDestroyCommandPool(_device, _frames[i]._command_pool, nullptr);
+    vkDestroyCommandPool(_logical, _frames[i]._command_pool, nullptr);
 
-    vkDestroyFence(_device, _frames[i]._render_fence, nullptr);
-    vkDestroySemaphore(_device, _frames[i]._render_semaphore, nullptr);
-    vkDestroySemaphore(_device, _frames[i]._swapchain_semaphore, nullptr);
+    vkDestroyFence(_logical, _frames[i]._render_fence, nullptr);
+    vkDestroySemaphore(_logical, _frames[i]._render_semaphore, nullptr);
+    vkDestroySemaphore(_logical, _frames[i]._swapchain_semaphore, nullptr);
   }
+
+  vkDestroyCommandPool(_logical, _imm_command_pool, nullptr);
+  vkDestroyFence(_logical, _imm_fence, nullptr);
 }
 
 void Cmd::init_commands() {
+  //--- INIT FRAME COMMANDS ---//
   VkCommandPoolCreateInfo command_pool_info{};
   command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_info.pNext = nullptr;
 	command_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	command_pool_info.queueFamilyIndex = _graphics_queue_family;
 
+  // double buffer system so each buffer requires a pool
   for (int i = 0; i < FRAME_OVERLAP; i++) {
     VK_CHECK(vkCreateCommandPool(
-      _device, 
+      _logical, 
       &command_pool_info, 
       nullptr,
       &_frames[i]._command_pool
@@ -41,15 +43,27 @@ void Cmd::init_commands() {
     cmd_alloc_info.commandBufferCount = 1;
     cmd_alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-    VK_CHECK(vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_frames[i]._main_command_buffer));
+    VK_CHECK(vkAllocateCommandBuffers(_logical, &cmd_alloc_info, &_frames[i]._main_command_buffer));
   }
+
+  //--- INIT IMMEDIATE COMMANDS---//
+  VK_CHECK(vkCreateCommandPool(_logical, &command_pool_info, nullptr, &_imm_command_pool));
+
+  VkCommandBufferAllocateInfo imm_alloc_info{};
+  imm_alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  imm_alloc_info.pNext = nullptr;
+  imm_alloc_info.commandPool = _imm_command_pool;
+  imm_alloc_info.commandBufferCount = 1;
+  imm_alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+  VK_CHECK(vkAllocateCommandBuffers(_logical, &imm_alloc_info, &_imm_command_buffer));
 
   init_sync_structures();
 }
 
 void Cmd::wait_for_render() {
-  VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._render_fence, true, 100000000));
-  VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._render_fence));
+  VK_CHECK(vkWaitForFences(_logical, 1, &get_current_frame()._render_fence, true, 100000000));
+  VK_CHECK(vkResetFences(_logical, 1, &get_current_frame()._render_fence));
 }
 
 void Cmd::begin_recording(VkCommandBufferUsageFlags flags) {
@@ -144,6 +158,48 @@ void Cmd::end_renderpass() {
   vkCmdEndRenderPass(current_cmd);
 }
 
+void Cmd::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) {
+  // wait for previous immediate submit to finish
+  VK_CHECK(vkResetFences(_logical, 1, &_imm_fence));
+	VK_CHECK(vkResetCommandBuffer(_imm_command_buffer, 0));
+
+	VkCommandBuffer cmd = _imm_command_buffer;
+
+	VkCommandBufferBeginInfo cmd_info{};
+  cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  cmd_info.pNext = nullptr;
+  cmd_info.pInheritanceInfo = nullptr;
+  cmd_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmd_info));
+
+	function(cmd);
+
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkCommandBufferSubmitInfo cmd_submit_info{};
+  cmd_submit_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+	cmd_submit_info.pNext = nullptr;
+	cmd_submit_info.commandBuffer = cmd;
+	cmd_submit_info.deviceMask = 0;
+
+	VkSubmitInfo2 submit_info{};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submit_info.pNext = nullptr;
+  submit_info.waitSemaphoreInfoCount = 0;
+  submit_info.pWaitSemaphoreInfos = nullptr;
+  submit_info.signalSemaphoreInfoCount = 0;
+  submit_info.pSignalSemaphoreInfos = nullptr;
+  submit_info.commandBufferInfoCount = 1;
+  submit_info.pCommandBufferInfos = &cmd_submit_info;
+
+	// submit command buffer to the queue and execute it.
+	//  _renderFence will now block until the graphic commands finish execution
+	VK_CHECK(queue_submit(_logical, _graphics_queue, 1, &submit_info, _imm_fence));
+
+	VK_CHECK(vkWaitForFences(_logical, 1, &_imm_fence, true, 9999999999));
+};
+
 void Cmd::submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFlags2 signal_mask) {
   VkSemaphoreSubmitInfo wait_info{};
 	wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -177,7 +233,7 @@ void Cmd::submit_graphics(VkPipelineStageFlags2 wait_mask, VkPipelineStageFlags2
   submit_info.commandBufferInfoCount = 1;
   submit_info.pCommandBufferInfos = &cmd_info;
 
-  VK_CHECK(queue_submit(_device, _graphics_queue, 1, &submit_info, get_current_frame()._render_fence));
+  VK_CHECK(queue_submit(_logical, _graphics_queue, 1, &submit_info, get_current_frame()._render_fence));
 }
 
 void Cmd::present_graphics(VkSwapchainKHR _swapchain, uint32_t* swapchain_image_index) {
@@ -251,6 +307,7 @@ void Cmd::draw_background(Swapchain* swapchain, VkExtent2D _window_extent, uint3
 }
 
 void Cmd::init_sync_structures() {
+  //--- SYNC STRUCTURES FOR BUFFERS ---//
   VkFenceCreateInfo fence_info{};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fence_info.pNext = nullptr;
@@ -262,11 +319,12 @@ void Cmd::init_sync_structures() {
   semaphore_info.flags = 0;
 
   for (int i = 0; i < FRAME_OVERLAP; i++) {
-    VK_CHECK(vkCreateFence(_device, &fence_info, nullptr, &_frames[i]._render_fence));
+    VK_CHECK(vkCreateFence(_logical, &fence_info, nullptr, &_frames[i]._render_fence));
 
-    VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._swapchain_semaphore));
-    VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_frames[i]._render_semaphore));
+    VK_CHECK(vkCreateSemaphore(_logical, &semaphore_info, nullptr, &_frames[i]._swapchain_semaphore));
+    VK_CHECK(vkCreateSemaphore(_logical, &semaphore_info, nullptr, &_frames[i]._render_semaphore));
   }
-}
 
-} // namespace GRAPHICS
+  //--- SYNC STRUCTURES FOR IMMEDIATE SUBMIT---//
+  VK_CHECK(vkCreateFence(_logical, &fence_info, nullptr, &_imm_fence));
+}

@@ -3,52 +3,82 @@
 namespace GRAPHICS
 {
 
-void GUI::init() {
-  // create command pool
-  VkCommandPoolCreateInfo pool_info{};
-  pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  pool_info.pNext = nullptr;
-  pool_info.queueFamilyIndex = _graphics_queue_index;
-  pool_info.flags =  VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  vkCreateCommandPool(_device, &pool_info, nullptr, &_command_pool);
+GUI::GUI(Device* dev, Swapchain* swap, SDL_Window* window, Cmd* cm)
+  : device(dev), swapchain(swap), _window(window), cmd(cm) {}
 
-  // create command buffer
-  VkCommandBufferAllocateInfo cmd_alloc_info{};
-  cmd_alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  cmd_alloc_info.pNext = nullptr;
-  cmd_alloc_info.commandPool = _command_pool;
-  cmd_alloc_info.commandBufferCount = 1;
-  cmd_alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  vkAllocateCommandBuffers(_device, &cmd_alloc_info, &_command_buffer);
-
-  // initialize fence
-  VkFenceCreateInfo fence_create_info{};
-  fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  fence_create_info.pNext = nullptr;
-  fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-  vkCreateFence(_device, &fence_create_info, nullptr, &_fence);
+GUI::~GUI() {
+  vkDestroyDescriptorPool(device->get_device(), imgui_pool, nullptr);
+  ImGui_ImplVulkan_Shutdown();
 }
 
+void GUI::init_imgui(VkInstance _instance) {
+  VkDescriptorPoolSize pool_sizes[] = { 
+    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
 
-void GUI::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) {
-  vkResetFences(_device, 1, &_fence);
-  vkResetCommandBuffer(_command_buffer, 0);
+  VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
 
-  VkCommandBuffer cmd = _command_buffer;
+  VK_CHECK(vkCreateDescriptorPool(device->get_device(), &pool_info, nullptr, &imgui_pool));
 
-  VkCommandBufferBeginInfo cmd_begin_info{};
-  cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  cmd_begin_info.pNext = nullptr;
-  cmd_begin_info.pInheritanceInfo = nullptr;
-  cmd_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  //--- INITIALIZE IMGUI ---//
+  ImGui::CreateContext();
+  //ImGui::SetCurrentContext(ctx);
+  ImGui_ImplSDL2_InitForVulkan(_window); // imgui for SDL2
 
-  vkBeginCommandBuffer(cmd, &cmd_begin_info);
+  // imgui for vulkan
+  ImGui_ImplVulkan_InitInfo init_info {};
+  init_info.Instance = _instance;
+	init_info.PhysicalDevice = device->get_gpu();
+	init_info.Device = device->get_device();
+	init_info.Queue = device->get_graphics_queue();
+	init_info.DescriptorPool = imgui_pool;
+	init_info.MinImageCount = 3;
+	init_info.ImageCount = 3;
+	init_info.UseDynamicRendering = false;
+	init_info.ColorAttachmentFormat = swapchain->get_format();
 
-  function(cmd);
+  init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-  vkEndCommandBuffer(cmd);
+  ImGui_ImplVulkan_Init(&init_info, swapchain->get_renderpass());
 
+  cmd->immediate_submit([&](VkCommandBuffer cmd) { ImGui_ImplVulkan_CreateFontsTexture(cmd); });
+
+  ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
+void GUI::process_event(SDL_Event *event) {
+  ImGui_ImplSDL2_ProcessEvent(event);
+}
+
+void GUI::begin_drawing() {
+  // imgui new frame
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplSDL2_NewFrame(_window);
+  ImGui::NewFrame();
+
+  // some imgui UI to test
+  ImGui::ShowDemoWindow();
+
+  // make imgui calculate internal draw structures
+  ImGui::Render();
+}
+
+void GUI::draw_imgui() {
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd->current_cmd);
+}
 
 } // namespace GRAPHICS

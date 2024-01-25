@@ -1,7 +1,5 @@
 #include "Object.h"
 
-namespace GRAPHICS {
-
 VertexInputDescription Vertex::get_vertex_description() {
   VertexInputDescription description;
 
@@ -20,7 +18,7 @@ VertexInputDescription Vertex::get_vertex_description() {
 	position_attribute.format = VK_FORMAT_R32G32B32_SFLOAT;
 	position_attribute.offset = offsetof(Vertex, position);
 
-	 //Normal will be stored at Location 1
+	//Normal will be stored at Location 1
 	VkVertexInputAttributeDescription normal_attribute = {};
 	normal_attribute.binding = 0;
 	normal_attribute.location = 1;
@@ -145,5 +143,3 @@ void Object::upload_mesh() {
 
   is_uploaded = true;
 }
-
-} // namespace GRAPHICS

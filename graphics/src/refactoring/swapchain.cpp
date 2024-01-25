@@ -1,32 +1,23 @@
-#include "Swapchain.h"
+#include "swapchain.h"
 
-namespace GRAPHICS
-{
-
-Swapchain::Swapchain(
-  VkInstance instance, 
-  Device* device, 
-  VkSurfaceKHR surface,
-  SDL_Window* window,
-  VmaAllocator allocator)
-: _instance(instance), device(device), _surface(surface), _window(window), _allocator(allocator) {
-  _gpu = device->get_gpu();
-}
+Swapchain::Swapchain(VkInstance instance, Device* device,VkSurfaceKHR surface,
+  SDL_Window* window,VmaAllocator allocator
+) : _instance(instance), _device(device), _surface(surface), _window(window), _allocator(allocator){}
 
 Swapchain::~Swapchain() {
-  vkDestroyRenderPass(device->get_device(), _renderpass, nullptr);
+  vkDestroyRenderPass(_device->_logical, _renderpass, nullptr);
 
   for (auto framebuffer : _framebuffers) {
-    vkDestroyFramebuffer(device->get_device(), framebuffer, nullptr);
+    vkDestroyFramebuffer(_device->_logical, framebuffer, nullptr);
   }
 
   for (auto image_view : swapchain_image_views) {
-    vkDestroyImageView(device->get_device(), image_view, nullptr);
+    vkDestroyImageView(_device->_logical, image_view, nullptr);
   }
 
   delete _depth_image;
 
-  vkDestroySwapchainKHR(device->get_device(), _swapchain, nullptr);
+  vkDestroySwapchainKHR(_device->_logical, _swapchain, nullptr);
 }
 
 void Swapchain::create_default() {
@@ -58,11 +49,11 @@ void Swapchain::create_default() {
   swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
   uint32_t queue_family_indices[] = {
-    device->get_graphics_index(),
-    device->get_present_index()
+    _device->_graphics_index.value(),
+    _device->_present_index.value()
   };
 
-  if (device->get_graphics_index() != device->get_present_index()) {
+  if (_device->_graphics_index.value() != _device->_present_index.value()) {
     swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     swapchain_info.queueFamilyIndexCount = 2;
     swapchain_info.pQueueFamilyIndices = queue_family_indices;
@@ -79,25 +70,14 @@ void Swapchain::create_default() {
   swapchain_info.clipped = VK_TRUE;
   swapchain_info.oldSwapchain = VK_NULL_HANDLE;
 
-  if (vkCreateSwapchainKHR(
-    device->get_device(), 
-    &swapchain_info, 
-    nullptr, 
-    &_swapchain
-  ) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create swap chain!");
-  }
+  VK_CHECK(vkCreateSwapchainKHR(_device->_logical, &swapchain_info, nullptr, &_swapchain));
 
   // retrieve swapchain images
-  vkGetSwapchainImagesKHR(device->get_device(), _swapchain, &image_count, nullptr);
+  vkGetSwapchainImagesKHR(_device->_logical, _swapchain, &image_count, nullptr);
   swapchain_images.resize(image_count);
-  vkGetSwapchainImagesKHR(device->get_device(), _swapchain, &image_count, swapchain_images.data());
+  vkGetSwapchainImagesKHR(_device->_logical, _swapchain, &image_count, swapchain_images.data());
 
   create_image_views();
-}
-
-void Swapchain::resize(VkExtent2D _window_extent) {
-
 }
 
 void Swapchain::init_default_renderpass() {
@@ -176,9 +156,7 @@ void Swapchain::init_default_renderpass() {
   render_pass_info.dependencyCount = 2;
   render_pass_info.pDependencies = &dependencies[0];
 
-	if (vkCreateRenderPass(device->get_device(), &render_pass_info, nullptr, &_renderpass) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create renderpass!");
-  }
+	VK_CHECK(vkCreateRenderPass(_device->_logical, &render_pass_info, nullptr, &_renderpass));
 }
 
 void Swapchain::init_framebuffers() {
@@ -207,7 +185,7 @@ void Swapchain::init_framebuffers() {
     fb_info.pAttachments = attachments;
     fb_info.attachmentCount = 2;
 
-		if (vkCreateFramebuffer(device->get_device(), &fb_info, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
+		if (vkCreateFramebuffer(_device->_logical, &fb_info, nullptr, &_framebuffers[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create framebuffer");
     }
 	}
@@ -215,35 +193,27 @@ void Swapchain::init_framebuffers() {
 
 void Swapchain::init_depth_image(VkExtent2D _window_extent) {
   //depth image size will match window
-  _depth_image = new Image(_allocator, device->get_device());
+  _depth_image = new Image(_allocator, _device->_logical);
   _depth_image->create_depth_image(_window_extent);
 }
 
 void Swapchain::query_swapchain_details() {
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_gpu, _surface, &details.capabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_device->_physical, _surface, &details.capabilities);
 
   uint32_t format_count;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(_gpu, _surface, &format_count, nullptr);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(_device->_physical, _surface, &format_count, nullptr);
 
   if (format_count != 0) {
     details.formats.resize(format_count);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(
-      _gpu, _surface, 
-      &format_count, 
-      details.formats.data()
-    );
+    vkGetPhysicalDeviceSurfaceFormatsKHR(_device->_physical, _surface, &format_count, details.formats.data());
   }
 
   uint32_t present_mode_count;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(_gpu, _surface, &present_mode_count, nullptr);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(_device->_physical, _surface, &present_mode_count, nullptr);
 
   if (present_mode_count != 0) {
     details.present_modes.resize(present_mode_count);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-      _gpu, 
-      _surface, 
-      &present_mode_count, 
-      details.present_modes.data());
+    vkGetPhysicalDeviceSurfacePresentModesKHR(_device->_physical, _surface, &present_mode_count, details.present_modes.data());
   }
 }
 
@@ -319,9 +289,7 @@ void Swapchain::create_image_views() {
     image_info.subresourceRange.baseArrayLayer = 0;
     image_info.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(device->get_device(), &image_info, nullptr, &swapchain_image_views[i]) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create image views!");
-    }
+    VK_CHECK(vkCreateImageView(_device->_logical, &image_info, nullptr, &swapchain_image_views[i]));
   }
 }
 
@@ -338,5 +306,3 @@ VkRenderPassBeginInfo Swapchain::renderpass_begin_info(VkExtent2D _window_extent
 
   return renderpass_info;
 }
-
-} // namespace MB

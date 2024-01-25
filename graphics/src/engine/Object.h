@@ -2,15 +2,7 @@
 
 #include "../vulkan_util/vk_types.h"
 
-#include <vector>
-#include <iostream>
-#include <unordered_map>
-
-#include <glm/vec3.hpp>
-#include <vulkan/vulkan.h>
 #include <tiny_obj_loader.h>
-
-namespace GRAPHICS {
 
 struct VertexInputDescription {
   std::vector<VkVertexInputBindingDescription> bindings;
@@ -42,8 +34,8 @@ struct Material {
 
 class Object {
 public:
-  Mesh mesh;
-  Material material;
+  Mesh      mesh;
+  Material  material;
   glm::mat4 transform_mtx;
 
   Object(const char* filename, VmaAllocator allocator);
@@ -57,5 +49,3 @@ private:
 
   VmaAllocator _allocator;
 };
-
-} // namespace GRAPHICS

@@ -1,12 +1,11 @@
 #include "Pipeline.h"
 
-namespace GRAPHICS
-{
+#include <fstream>
 
 Pipeline::~Pipeline() {
   if (vert_shader != VK_NULL_HANDLE) {
-    vkDestroyShaderModule(_device, frag_shader, nullptr);
-    vkDestroyShaderModule(_device, vert_shader, nullptr);
+    vkDestroyShaderModule(_logical, frag_shader, nullptr);
+    vkDestroyShaderModule(_logical, vert_shader, nullptr);
     frag_shader = VK_NULL_HANDLE;
     vert_shader = VK_NULL_HANDLE;
   }
@@ -24,8 +23,8 @@ void Pipeline::clear() {
 	_shader_stages.clear();
 
   if (vert_shader != VK_NULL_HANDLE) {
-    vkDestroyShaderModule(_device, frag_shader, nullptr);
-    vkDestroyShaderModule(_device, vert_shader, nullptr);
+    vkDestroyShaderModule(_logical, frag_shader, nullptr);
+    vkDestroyShaderModule(_logical, vert_shader, nullptr);
     frag_shader = VK_NULL_HANDLE;
     vert_shader = VK_NULL_HANDLE;
   }
@@ -84,7 +83,7 @@ VkPipeline Pipeline::build_pipeline(VkRenderPass pass) {
 
   VkPipeline new_pipeline;
   if (vkCreateGraphicsPipelines(
-    _device, 
+    _logical, 
     VK_NULL_HANDLE, 
     1, 
     &pipeline_info, 
@@ -94,8 +93,8 @@ VkPipeline Pipeline::build_pipeline(VkRenderPass pass) {
     fmt::println("failed to create pipeline");
   }
   else {
-    vkDestroyShaderModule(_device, frag_shader, nullptr);
-    vkDestroyShaderModule(_device, vert_shader, nullptr);
+    vkDestroyShaderModule(_logical, frag_shader, nullptr);
+    vkDestroyShaderModule(_logical, vert_shader, nullptr);
     frag_shader = VK_NULL_HANDLE;
     vert_shader = VK_NULL_HANDLE;
     return new_pipeline;
@@ -207,17 +206,7 @@ VkShaderModule Pipeline::create_shader_module(const std::vector<char>& code) {
   shader_module_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
   VkShaderModule shader_module;
-  if (vkCreateShaderModule(
-    _device,
-    &shader_module_info, 
-    nullptr, 
-    &shader_module
-    ) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
-  }
+  VK_CHECK(vkCreateShaderModule(_logical, &shader_module_info, nullptr, &shader_module));
 
   return shader_module;
 }
-
-
-} // namespace GRAPHICS

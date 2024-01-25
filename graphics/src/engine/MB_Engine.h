@@ -22,6 +22,7 @@
 #include "../vulkan/Image.h"
 #include "../vulkan/Pipeline.h"
 #include "../vulkan/Cmd.h"
+#include "GUI.h"
 #include "Object.h"
 #include "Camera.h"
 
@@ -128,7 +129,12 @@ private:
   Image* image;
   Cmd* cmd;
   Pipeline* pipeline;
+  GUI* gui;
+
+  // camera and movement states
   Camera* camera;
+  float x_velocity;
+  float y_velocity;
 
   void init_vulkan();
   void create_window();
@@ -143,9 +149,9 @@ private:
   void init_commands();
 
   void init_pipelines();
-  void init_triangle_pipeline();
-  void init_colored_pipeline();
   void init_mesh_pipeline();
+
+  void init_gui();
 
   void load_meshes();
 

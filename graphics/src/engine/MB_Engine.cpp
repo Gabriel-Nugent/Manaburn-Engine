@@ -23,6 +23,7 @@ MB_Engine::~MB_Engine() {
 void MB_Engine::init() {
   init_vulkan();
   load_meshes();
+  init_gui();
   init_camera();
   init_scene();
   _initialized = true;
@@ -85,6 +86,8 @@ while (!should_quit) {
     else if (event.type == SDL_MOUSEWHEEL) {
       camera->pos.z += (event.wheel.preciseY * 0.5f);
     }
+
+    gui->process_event(&event);
   }
 
   // slow loop iteration to save resources  
@@ -92,6 +95,8 @@ while (!should_quit) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     continue;
   }
+
+  gui->begin_drawing();
 
   draw();
 }
@@ -114,6 +119,7 @@ void MB_Engine::cleanup() {
     mb_objs.flush();
     pipeline_queue.flush(_device);
     delete camera;
+    delete gui;
     delete cmd;
     delete swapchain;
     vmaDestroyAllocator(_allocator);
@@ -134,10 +140,6 @@ void MB_Engine::cleanup() {
 void MB_Engine::init_vulkan() {
   create_window();
   create_instance();
-
-  if (ENABLE_VALIDATION_LAYERS) {
-    setup_debug_messenger();
-  }
 
   create_surface();
   init_device();
@@ -286,44 +288,7 @@ void MB_Engine::init_commands() {
 }
 
 void MB_Engine::init_pipelines() {
-  init_triangle_pipeline();
-  init_colored_pipeline();
   init_mesh_pipeline();
-}
-
-void MB_Engine::init_triangle_pipeline() {
-  VkPipelineLayout layout;
-  vklayout::Layout::triangle_layout(_device, &layout);
-  Pipeline pipeline_builder(device->get_device());
-  pipeline_builder.set_shaders("shaders/triangle.vert.spv", "shaders/triangle.frag.spv");
-  pipeline_builder.set_vertex_input_info();
-  pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-  pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-  pipeline_builder.set_multisampling_none();
-  pipeline_builder.set_pipeline_layout(layout);
-  pipeline_builder.default_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-  pipeline_builder.disable_blending();
-  VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
-
-  pipeline_queue.pipeline_layouts["Triangle Layout"] = layout;
-  pipeline_queue.pipelines["Triangle Pipeline"] = pipeline;
-}
-
-void MB_Engine::init_colored_pipeline() {
-  Pipeline pipeline_builder(device->get_device());
-  pipeline_builder.set_shaders("shaders/colored_triangle.vert.spv", "shaders/colored_triangle.frag.spv");
-  pipeline_builder.set_vertex_input_info();
-  pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-  pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-  pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-  pipeline_builder.set_multisampling_none();
-  pipeline_builder.set_pipeline_layout(pipeline_queue.pipeline_layouts["Triangle Layout"]);
-  pipeline_builder.default_depth_stencil(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-  pipeline_builder.disable_blending();
-  VkPipeline pipeline = pipeline_builder.build_pipeline(swapchain->get_renderpass());
-
-  pipeline_queue.pipelines["Colored Pipeline"] = pipeline;
 }
 
 void MB_Engine::init_mesh_pipeline() {
@@ -354,6 +319,11 @@ void MB_Engine::init_mesh_pipeline() {
   Material mat;
   mat.create_material(pipeline, layout);
   materials["mesh"] = mat;
+}
+
+void MB_Engine::init_gui() {
+  gui = new GUI(device, swapchain, _window, cmd);
+  gui->init_imgui(_instance);
 }
 
 void MB_Engine::load_meshes() {
@@ -429,10 +399,9 @@ void MB_Engine::draw() {
   cmd->begin_renderpass(&renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 
   //--- RENDERING COMMANDS ---//
-
   cmd->set_window(_window_extent);
- 
   cmd->draw_objects(camera->pos, _renderables.data(), _renderables.size());
+  gui->draw_imgui();
 
   cmd->end_renderpass();
   cmd->end_recording();

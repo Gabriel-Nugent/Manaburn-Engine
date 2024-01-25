@@ -1,29 +1,19 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include <fstream>
-#include <string>
-#include <unordered_map>
-
-#include <vulkan/vulkan.h>
-#include <fmt/core.h>
+#include "vk_types.h"
 
 #include "Device.h"
-
-namespace GRAPHICS
-{
 
 struct Pipeline_Queue {
   std::unordered_map<std::string, VkPipeline> pipelines;
   std::unordered_map<std::string, VkPipelineLayout> pipeline_layouts;
 
-  void flush(VkDevice _device) {
+  void flush(VkDevice _logical) {
     for (auto pipeline : pipelines) {
-      vkDestroyPipeline(_device, pipeline.second, nullptr);
+      vkDestroyPipeline(_logical, pipeline.second, nullptr);
     }
     for (auto layout : pipeline_layouts) {
-      vkDestroyPipelineLayout(_device, layout.second, nullptr);
+      vkDestroyPipelineLayout(_logical, layout.second, nullptr);
     }
   }
 };
@@ -31,18 +21,18 @@ struct Pipeline_Queue {
 class Pipeline
 {
 public:
-  std::vector<VkPipelineShaderStageCreateInfo> _shader_stages;
-  VkPipelineVertexInputStateCreateInfo _vertex_input_info;
-  VkPipelineInputAssemblyStateCreateInfo _input_assembly;
-  VkPipelineRasterizationStateCreateInfo _rasterizer;
-  VkPipelineColorBlendAttachmentState _color_blend_attachment;
-  VkPipelineMultisampleStateCreateInfo _multisampling;
-  VkPipelineLayout _pipeline_layout;
-  VkPipelineDepthStencilStateCreateInfo _depth_stencil;
+  std::vector<VkPipelineShaderStageCreateInfo>  _shader_stages;
+  VkPipelineVertexInputStateCreateInfo          _vertex_input_info;
+  VkPipelineInputAssemblyStateCreateInfo        _input_assembly;
+  VkPipelineRasterizationStateCreateInfo        _rasterizer;
+  VkPipelineColorBlendAttachmentState           _color_blend_attachment;
+  VkPipelineMultisampleStateCreateInfo          _multisampling;
+  VkPipelineLayout                              _pipeline_layout;
+  VkPipelineDepthStencilStateCreateInfo         _depth_stencil;
 
   Pipeline(VkDevice device){ 
     clear();
-    _device = device;
+    _logical = device;
   }
 
   ~Pipeline();
@@ -62,7 +52,7 @@ public:
   void disable_blending();
 
 private:
-  VkDevice _device;
+  VkDevice _logical;
   VkShaderModule vert_shader = VK_NULL_HANDLE;
   VkShaderModule frag_shader = VK_NULL_HANDLE;
 
@@ -70,5 +60,3 @@ private:
   VkShaderModule create_shader_module(const std::vector<char>& code);
   
 };
-
-} // namespace GRAPHICS

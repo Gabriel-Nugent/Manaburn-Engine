@@ -50,6 +50,9 @@ public:
 
   // image handles
   Image* _depth_image;
+  uint32_t image_count;
+  Swapchain_details details;
+
 private:
   // Vulkan handles
   VkInstance _instance;
@@ -62,7 +65,6 @@ private:
   // Swapchain handles
   VkSwapchainKHR _swapchain;
   VkSwapchainKHR _old_swapchain = VK_NULL_HANDLE;
-  Swapchain_details details;
   VkSwapchainCreateInfoKHR old_create_info{};
   VkFormat swapchain_image_format;
   VkExtent2D swapchain_extent;
